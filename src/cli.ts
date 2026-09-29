@@ -31,7 +31,7 @@ program
 
 // Filtering
 program
-  .option('-n, --max-count <count>', 'Limit the number of commits to output', (val) =>
+  .option('-n, --max-count, --limit <count>', 'Limit the number of commits to output (e.g. -n 100, -100)', (val) =>
     parseInt(val, 10)
   )
   .option('--since <date>', 'Show commits more recent than a specific date')
@@ -189,4 +189,16 @@ program.action(async (cliOpts) => {
   }
 });
 
-program.parse(process.argv);
+const userArgs = process.argv.slice(2);
+const normalizedArgs: string[] = [];
+
+for (const arg of userArgs) {
+  const match = arg.match(/^-(\d+)$/);
+  if (match) {
+    normalizedArgs.push('-n', match[1]);
+  } else {
+    normalizedArgs.push(arg);
+  }
+}
+
+program.parse(normalizedArgs, { from: 'user' });
