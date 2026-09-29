@@ -421,7 +421,25 @@ describe('Renderers', () => {
     const renderer = new TerminalRenderer({ ...options, status: 'exclude' });
     const output = renderer.render(items);
 
-    expect(output).toContain('◆──◎');
+    expect(output).toContain('◆──╮');
+    expect(output).toContain('◎');
+
+    const lines = output.split('\n');
+    const mergeLineIdx = lines.findIndex((l) => l.includes('◆──╮'));
+    expect(mergeLineIdx).toBeGreaterThanOrEqual(0);
+
+    // Line 1: continuation for date in column 2 has vertical lines │  │
+    expect(lines[mergeLineIdx + 1]).toContain('│');
+
+    // Line 2: spacer line under commit has vertical lines │  │ (1-line connection to portal)
+    expect(lines[mergeLineIdx + 2]).toMatch(/^[│ ]+$/);
+    expect(lines[mergeLineIdx + 2]).toContain('│');
+
+    // Line 3: connector row between commit title rows has the portal glyph ◎
+    expect(lines[mergeLineIdx + 3]).toContain('◎');
+    // Ensure the line containing ◎ does NOT contain any commit hash, date, or author
+    expect(lines[mergeLineIdx + 3]).not.toContain('m_dist0');
+    expect(lines[mergeLineIdx + 3]).not.toContain('Dev');
   });
 
   it('renders extended portal line with ◎ at start and │ filling empty space', () => {

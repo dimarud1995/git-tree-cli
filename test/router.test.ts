@@ -255,10 +255,9 @@ describe('Graph Router', () => {
     if (m1Item && m1Item.kind === 'node') {
       // Merge commit is on lane 0
       expect(m1Item.row.lane).toBe(0);
-      // External/distant parent is in portalForks, NOT kept open in forkToLanes
-      expect(m1Item.row.portalForks).toBeDefined();
-      expect(m1Item.row.portalForks!.length).toBeGreaterThan(0);
-      expect(m1Item.row.forkToLanes).toHaveLength(0);
+      // External/distant parent forks with corner (forkToLanes) and exits via portal (portalExits)
+      expect(m1Item.row.forkToLanes).toContain(1);
+      expect(m1Item.row.portalExits).toContain(1);
     }
   });
 
@@ -343,7 +342,7 @@ describe('Graph Router', () => {
     }
   });
 
-  it('extends portal lines downwards through empty space to the bottom with 1-node gap before target commit', () => {
+  it('extends portal lines through empty space to the target commit, with portals on connector rows', () => {
     // c0 is on lane 0, distant parent is c5 (distance 5 > 3)
     // c1, c2, c3, c4 are on lane 1
     // c5 is on lane 0
@@ -434,33 +433,25 @@ describe('Graph Router', () => {
     const nodeItems = items.filter((it): it is { kind: 'node'; row: any } => it.kind === 'node');
     expect(nodeItems).toHaveLength(6);
 
-    // c0: commit in the future on lane 0
+    // c0: commit on lane 0, exits directly into portal (short 1-line connection)
     expect(nodeItems[0].row.lane).toBe(0);
-    // Line continues downwards, so portalExits was moved to the bottom of the empty space
-    expect(nodeItems[0].row.portalExits || []).not.toContain(0);
+    expect(nodeItems[0].row.portalExits).toContain(0);
 
-    // c1 and c2: extended line continues downwards with │ on lane 0
+    // After c0, the exit connector has portal glyph on lane 0
+    const exitConn = items[1];
+    expect(exitConn.kind).toBe('connector');
+    if (exitConn.kind === 'connector') {
+      expect(exitConn.connector.portalLanes).toContain(0);
+    }
+
+    // Extended lines continue downwards through empty space to c5
     expect(nodeItems[1].row.activeLanes).toContain(0);
     expect(nodeItems[2].row.activeLanes).toContain(0);
-
-    // c3: bottom of extended line, exits with portal!
     expect(nodeItems[3].row.activeLanes).toContain(0);
-    expect(nodeItems[3].row.portalExits).toContain(0);
+    expect(nodeItems[4].row.activeLanes).toContain(0);
 
-    // c4: 1-node gap! lane 0 is completely empty
-    expect(nodeItems[4].row.activeLanes).not.toContain(0);
-
-    // c5: target commit sits on lane 0
+    // c5: destination commit sits on lane 0 and receives the line directly
     expect(nodeItems[5].row.lane).toBe(0);
-
-    // Connector with short teleport line right above c5
-    const connectorBeforeC5 = items.find(
-      (it, idx) => it.kind === 'connector' && items[idx + 1]?.kind === 'node' && (items[idx + 1] as any).row.node.id === 'c5'
-    );
-    expect(connectorBeforeC5).toBeDefined();
-    if (connectorBeforeC5 && connectorBeforeC5.kind === 'connector') {
-      expect(connectorBeforeC5.connector.portalLanes).toContain(0);
-    }
   });
 });
 

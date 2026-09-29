@@ -155,27 +155,113 @@ export function routeGraph(
     }
 
     // 1b. If node has an incoming portal (was targeted by portal from above) and matchingLanes was empty:
-    // Display a short connector right above the node with portalLanes: [nodeLane]
+    // In portal mode: extend lines from the portal downwards through empty space to the commit,
+    // ensuring portals are always on connector rows between commit title rows.
     if (hasIncomingPortal && matchingLanes.length === 0) {
-      const activeSnapshot: number[] = [];
-      const activeBranches: Record<number, string> = {};
-      for (let l = 0; l < tracks.length; l++) {
-        if (tracks[l] !== null) {
-          activeSnapshot.push(l);
-          if (trackBranches[l]) activeBranches[l] = trackBranches[l]!;
+      let obstacleItemIdx = -1;
+      for (let j = items.length - 1; j >= 0; j--) {
+        if (isLaneBlockedAtItem(items[j], nodeLane)) {
+          obstacleItemIdx = j;
+          break;
         }
       }
-      activeBranches[nodeLane] = nodeBranch;
-      items.push({
-        kind: 'connector',
-        connector: {
-          activeLanes: activeSnapshot,
-          laneBranches: activeBranches,
-          transitions: [],
-          portalLanes: [nodeLane],
-          portalBranches: { [nodeLane]: nodeBranch },
-        },
-      });
+
+      const obstacleItem = obstacleItemIdx !== -1 ? items[obstacleItemIdx] : null;
+
+      if (
+        obstacleItem &&
+        obstacleItem.kind === 'connector' &&
+        obstacleItem.connector.portalLanes?.includes(nodeLane)
+      ) {
+        // Obstacle is an existing portal connector on the same lane: continue directly downwards from that portal!
+        const conn = obstacleItem.connector;
+        if (!conn.activeLanes.includes(nodeLane)) {
+          conn.activeLanes = Array.from(new Set([...conn.activeLanes, nodeLane])).sort((a, b) => a - b);
+        }
+        conn.laneBranches[nodeLane] = nodeBranch;
+
+        for (let j = obstacleItemIdx + 1; j < items.length; j++) {
+          const item = items[j];
+          if (item.kind === 'node') {
+            item.row.activeLanes = Array.from(new Set([...item.row.activeLanes, nodeLane])).sort((a, b) => a - b);
+            item.row.laneBranches[nodeLane] = nodeBranch;
+          } else if (item.kind === 'connector') {
+            item.connector.activeLanes = Array.from(new Set([...item.connector.activeLanes, nodeLane])).sort((a, b) => a - b);
+            item.connector.laneBranches[nodeLane] = nodeBranch;
+          }
+        }
+      } else {
+        const startItemIdx = Math.max(obstacleItemIdx !== -1 ? obstacleItemIdx + 1 : 1, 1);
+
+        if (startItemIdx < items.length) {
+          // Empty space available: place entry portal glyph on connector row between commit title rows
+          const targetItem = items[startItemIdx];
+          if (targetItem.kind === 'connector') {
+            targetItem.connector.portalLanes = Array.from(
+              new Set([...(targetItem.connector.portalLanes || []), nodeLane])
+            );
+            targetItem.connector.portalBranches = {
+              ...(targetItem.connector.portalBranches || {}),
+              [nodeLane]: nodeBranch,
+            };
+            targetItem.connector.laneBranches[nodeLane] = nodeBranch;
+          } else {
+            // Insert connector row right before targetItem
+            const activeSnapshot: number[] = [];
+            const activeBranches: Record<number, string> = {};
+            for (let l = 0; l < tracks.length; l++) {
+              if (tracks[l] !== null) {
+                activeSnapshot.push(l);
+                if (trackBranches[l]) activeBranches[l] = trackBranches[l]!;
+              }
+            }
+            activeBranches[nodeLane] = nodeBranch;
+            items.splice(startItemIdx, 0, {
+              kind: 'connector',
+              connector: {
+                activeLanes: Array.from(new Set(activeSnapshot)).sort((a, b) => a - b),
+                laneBranches: activeBranches,
+                transitions: [],
+                portalLanes: [nodeLane],
+                portalBranches: { [nodeLane]: nodeBranch },
+              },
+            });
+          }
+
+          // Fill empty space with activeLanes (│) down to the node
+          for (let j = startItemIdx + 1; j < items.length; j++) {
+            const item = items[j];
+            if (item.kind === 'node') {
+              item.row.activeLanes = Array.from(new Set([...item.row.activeLanes, nodeLane])).sort((a, b) => a - b);
+              item.row.laneBranches[nodeLane] = nodeBranch;
+            } else if (item.kind === 'connector') {
+              item.connector.activeLanes = Array.from(new Set([...item.connector.activeLanes, nodeLane])).sort((a, b) => a - b);
+              item.connector.laneBranches[nodeLane] = nodeBranch;
+            }
+          }
+        } else {
+          // No space to extend: short connector right above this node
+          const activeSnapshot: number[] = [];
+          const activeBranches: Record<number, string> = {};
+          for (let l = 0; l < tracks.length; l++) {
+            if (tracks[l] !== null) {
+              activeSnapshot.push(l);
+              if (trackBranches[l]) activeBranches[l] = trackBranches[l]!;
+            }
+          }
+          activeBranches[nodeLane] = nodeBranch;
+          items.push({
+            kind: 'connector',
+            connector: {
+              activeLanes: activeSnapshot,
+              laneBranches: activeBranches,
+              transitions: [],
+              portalLanes: [nodeLane],
+              portalBranches: { [nodeLane]: nodeBranch },
+            },
+          });
+        }
+      }
     }
 
     // 2. Active lanes snapshot before forks
@@ -241,11 +327,20 @@ export function routeGraph(
             currentLaneBranches[newLane] = pBranch;
           }
         } else {
-          // Portal fork!
+          // Distant parent: fork with a corner and enter portal!
           portalTargets.add(parentId);
-          const portalLane = Math.max(nodeLane + 1, tracks.length);
-          portalForks.push(portalLane);
-          portalForkBranches[portalLane] = pBranch;
+          let portalLane = -1;
+          for (let l = nodeLane + 1; l < tracks.length; l++) {
+            if (tracks[l] === null) {
+              portalLane = l;
+              break;
+            }
+          }
+          if (portalLane === -1) {
+            portalLane = Math.max(nodeLane + 1, tracks.length);
+          }
+          forkToLanes.push(portalLane);
+          portalExits.push(portalLane);
           currentLaneBranches[portalLane] = pBranch;
         }
       }
@@ -269,6 +364,33 @@ export function routeGraph(
         hasIncomingPortal,
       },
     });
+
+    // If node enters portal, render the portal glyph on a connector row between commit title rows,
+    // ensuring the commit spacer line has a clean vertical line leading directly into the portal.
+    if (portalExits.length > 0) {
+      const activeSnapshot: number[] = [];
+      const activeBranches: Record<number, string> = {};
+      for (let l = 0; l < tracks.length; l++) {
+        if (tracks[l] !== null) {
+          activeSnapshot.push(l);
+          if (trackBranches[l]) activeBranches[l] = trackBranches[l]!;
+        }
+      }
+      for (const pe of portalExits) {
+        activeSnapshot.push(pe);
+        activeBranches[pe] = currentLaneBranches[pe] || nodeBranch;
+      }
+      items.push({
+        kind: 'connector',
+        connector: {
+          activeLanes: Array.from(new Set(activeSnapshot)).sort((a, b) => a - b),
+          laneBranches: activeBranches,
+          transitions: [],
+          portalLanes: [...portalExits],
+          portalBranches: { ...activeBranches },
+        },
+      });
+    }
 
     // 4. Look ahead to check if the next node requires a lane shift/merge connector
     if (i < nodes.length - 1) {
@@ -320,98 +442,6 @@ export function routeGraph(
     while (tracks.length > 0 && tracks[tracks.length - 1] === null) {
       tracks.pop();
       trackBranches.pop();
-    }
-  }
-
-  // Post-processing pass for 'portal' mode:
-  // Extend lines from portal exits DOWNWARDS through empty space to the portal at the bottom,
-  // keeping a 1-node gap before any obstacle or target parent commit.
-  if (mode === 'portal') {
-    const nodeItems: { itemIndex: number; row: NodeRow }[] = [];
-    for (let j = 0; j < items.length; j++) {
-      const it = items[j];
-      if (it.kind === 'node') {
-        nodeItems.push({ itemIndex: j, row: it.row });
-      }
-    }
-
-    for (let n = 0; n < nodeItems.length; n++) {
-      const nodeItem = nodeItems[n];
-      const row = nodeItem.row;
-      if (!row.portalExits || row.portalExits.length === 0) continue;
-
-      const exits = [...row.portalExits];
-      for (const exitLane of exits) {
-        const exitBranch = row.laneBranches?.[exitLane] || row.branch;
-
-        // Parent commit ID that triggered this exit
-        const p0 = row.node.parents[0];
-        const targetNodeIdx = p0 ? nodeItems.findIndex((ni) => ni.row.node.id === p0) : -1;
-
-        // Scan downwards to find where exitLane is blocked or reaches target
-        let obstacleNodeIdx = -1;
-        for (let k = n + 1; k < nodeItems.length; k++) {
-          if (targetNodeIdx !== -1 && k === targetNodeIdx) {
-            obstacleNodeIdx = k;
-            break;
-          }
-          const prevItemIdx = nodeItems[k - 1].itemIndex;
-          const currItemIdx = nodeItems[k].itemIndex;
-          let blocked = false;
-          for (let j = prevItemIdx + 1; j <= currItemIdx; j++) {
-            if (isLaneBlockedAtItem(items[j], exitLane)) {
-              blocked = true;
-              break;
-            }
-          }
-          if (blocked) {
-            obstacleNodeIdx = k;
-            break;
-          }
-        }
-
-        // Determine how far down exitLane can extend
-        let maxEndNodeIdx: number;
-        if (obstacleNodeIdx !== -1) {
-          // Keep 1-node gap before the obstacle/target commit
-          maxEndNodeIdx = obstacleNodeIdx - 2;
-        } else {
-          // No obstacle found to the end of the node list
-          maxEndNodeIdx = nodeItems.length - 1;
-        }
-
-        if (maxEndNodeIdx > n) {
-          // Remove exitLane from current node's portalExits
-          row.portalExits = row.portalExits.filter((l) => l !== exitLane);
-
-          // Add exitLane to activeLanes on intermediate and end nodes
-          for (let k = n + 1; k <= maxEndNodeIdx; k++) {
-            nodeItems[k].row.activeLanes = Array.from(
-              new Set([...nodeItems[k].row.activeLanes, exitLane])
-            ).sort((a, b) => a - b);
-            nodeItems[k].row.laneBranches[exitLane] = exitBranch;
-          }
-
-          // Add exitLane to activeLanes on any connector items in this range
-          const firstItemIdx = nodeItem.itemIndex;
-          const lastItemIdx = nodeItems[maxEndNodeIdx].itemIndex;
-          for (let j = firstItemIdx + 1; j <= lastItemIdx; j++) {
-            const item = items[j];
-            if (item.kind === 'connector') {
-              item.connector.activeLanes = Array.from(
-                new Set([...item.connector.activeLanes, exitLane])
-              ).sort((a, b) => a - b);
-              item.connector.laneBranches[exitLane] = exitBranch;
-            }
-          }
-
-          // Place portalExits on the final extended node
-          const endRow = nodeItems[maxEndNodeIdx].row;
-          endRow.portalExits = Array.from(
-            new Set([...(endRow.portalExits || []), exitLane])
-          );
-        }
-      }
     }
   }
 

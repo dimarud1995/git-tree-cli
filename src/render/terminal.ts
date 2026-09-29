@@ -399,40 +399,7 @@ export class TerminalRenderer {
         }
       }
 
-      // Render portal forks (e.g. ◆──◎)
-      if (row.portalForks && row.portalForks.length > 0) {
-        for (const portalLane of row.portalForks) {
-          const startLane = Math.min(lane, portalLane);
-          const endLane = Math.max(lane, portalLane);
-          const startIdx = startLane * LANE_WIDTH;
-          const endIdx = endLane * LANE_WIDTH;
 
-          const pfBranch = row.portalForkBranches?.[portalLane] || row.branch;
-          const pfColor = this.colorizer.branchColor(pfBranch);
-
-          for (let c = startIdx + 1; c < endIdx && c < col1Width; c++) {
-            const l = Math.floor(c / LANE_WIDTH);
-            const isLaneCol = c % LANE_WIDTH === 0;
-
-            if (isLaneCol && charArray[c].char === this.symbols.vLine) {
-              const crossBranch = row.laneBranches?.[l];
-              const crossColor = this.colorizer.branchColor(crossBranch);
-              charArray[c] = { char: this.symbols.cross[0], laneIndex: l, customColor: crossColor };
-            } else if (charArray[c].char === ' ') {
-              charArray[c] = { char: this.symbols.hLine, laneIndex: portalLane, customColor: pfColor };
-            }
-          }
-
-          const portalIdx = portalLane * LANE_WIDTH;
-          if (portalIdx < col1Width) {
-            charArray[portalIdx] = {
-              char: this.symbols.portal,
-              laneIndex: portalLane,
-              customColor: pfColor,
-            };
-          }
-        }
-      }
 
       col1FirstLine = padVisible(this.charsToString(charArray), col1Width);
       col1ContLine = padVisible(this.renderGraphContinuation(row, col1Width), col1Width);
@@ -616,8 +583,10 @@ export class TerminalRenderer {
       allContinuingLanes.add(lane);
     }
 
+    // Portal exit lanes continue through the spacer line as vertical lines,
+    // ensuring a clean 1-line connection from the commit into the portal!
     for (const pe of portalExits) {
-      allContinuingLanes.delete(pe);
+      allContinuingLanes.add(pe);
     }
 
     for (const l of allContinuingLanes) {
@@ -626,16 +595,6 @@ export class TerminalRenderer {
         const branch = row.laneBranches?.[l] || (l === lane ? row.branch : undefined);
         const customColor = this.colorizer.branchColor(branch);
         charArray[idx] = { char: this.symbols.vLine, laneIndex: l, customColor };
-      }
-    }
-
-    // Render portal glyph for exiting lanes on this spacer line
-    for (const pe of portalExits) {
-      const idx = pe * LANE_WIDTH;
-      if (idx < col1Width) {
-        const branch = row.laneBranches?.[pe] || row.branch;
-        const customColor = this.colorizer.branchColor(branch);
-        charArray[idx] = { char: this.symbols.portal, laneIndex: pe, customColor };
       }
     }
 
