@@ -25,14 +25,26 @@ Standard `git log --graph` produces narrow, hard-to-read ASCII text with minimal
 ## Visual Example
 
 ```text
-○   [DIRTY WORKTREE]  (+2 staged, 1 unstaged)
-◉   42a805f  (HEAD -> feature/payments)  Implement Stripe payment processor  10m ago   Dmitry R.
-◆──╮   f284b8c  [⚑ v1.0.0] (main)  ◆ Merge branch feature/login into main  1h ago    Dmitry R.
-│  ●   55083e6  (▹ feature/login)  Add user login service                  2h ago    Dmitry R.
-│  │  ▲   stash@{0}  On main: WIP on database config                        3h ago    Dmitry R.
-●  │   7271f8e  Add application configuration                               4h ago    Dmitry R.
-╰──╯
-■   cf4f01a  [⚑ v0.1.0]  Initial commit                                     Yesterday Dmitry R.
+○       [DIRTY]    Working tree dirty (+2 staged, 1 unstaged)
+│
+◉       42a805f    (HEAD -> feature/payments) Implement Stripe payment processor                Dmitry R.
+│       10m ago
+│
+◆──╮    f284b8c    [⚑ v1.0.0] (main) ◆ Merge branch feature/login into main                     Dmitry R.
+│  │    1h ago
+│  │
+│  ●    55083e6    (▹ feature/login) Add user login service                                     Dmitry R.
+│  │    2h ago
+│  │
+│  │ ▲  stash@{0}  On main: WIP on database config                                              Dmitry R.
+│  │ │  3h ago
+│  │
+●──╯ │  7271f8e    Add application configuration                                                Dmitry R.
+│    │  4h ago
+│    │
+╰────╯
+■       cf4f01a    [⚑ v0.1.0] Initial commit                                                    Dmitry R.
+        1d ago
 ```
 
 ---
@@ -110,7 +122,9 @@ git-tree --no-tags             # Hide tag references
 
 ### 2. Filtering (Which commits to show)
 ```bash
+git-tree -15                                 # Shorthand: limit to last 15 commits
 git-tree -n 15                               # Limit to 15 commits
+git-tree --limit 15                          # Limit to 15 commits (alias)
 git-tree --since "2 weeks ago"               # Commits newer than date
 git-tree --until "2026-01-01"                # Commits older than date
 git-tree --author "Dmitry"                   # Filter by author name/email regex
@@ -139,13 +153,19 @@ git-tree --only-status         # Show ONLY uncommitted status
 ```bash
 # Layout modes
 git-tree --layout compact      # Dense single-line mode (omits author/date)
-git-tree --layout normal       # Default balanced view
+git-tree --layout normal       # Default balanced view (4 columns, date below hash)
 git-tree --layout expanded     # Multi-line cards with full author and dates
 
 # Output format
 git-tree --format terminal     # ANSI TrueColor (default)
 git-tree --format markdown     # Fenced code block (ideal for AI chat responses)
 git-tree --format json         # Structured JSON graph for machine processing
+
+# Column toggles & Width
+git-tree -w 140                # Target table width in characters (auto-detected in TTY, default 120)
+git-tree --hide-author         # Hide author column (or --no-author)
+git-tree --hide-date           # Hide date under hash (or --no-date)
+git-tree --hide-hash           # Hide commit hash (or --no-hash)
 
 # Themes & Line Styles
 git-tree --theme tokyo         # Tokyo Night palette (default)

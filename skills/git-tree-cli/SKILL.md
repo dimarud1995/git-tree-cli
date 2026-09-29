@@ -12,16 +12,17 @@ When the user asks you questions about their Git repository, history, branches, 
 | User Query | Recommended Command |
 | :--- | :--- |
 | "Show me git tree / history" | `git-tree --format markdown` |
+| "Show last 10 / 50 / 100 commits" | `git-tree -10 --format markdown` (or `-50`, `-100`) |
 | "Show only my current branch commits" | `git-tree --current --format markdown` |
-| "What was merged recently?" | `git-tree --only-merges -n 15 --format markdown` |
+| "What was merged recently?" | `git-tree --only-merges -15 --format markdown` |
 | "What do I have in my stash?" | `git-tree --only-stashes --format markdown` |
 | "What changed in the working tree / status?" | `git-tree --only-status --format markdown` |
 | "Show commits by [author] this week" | `git-tree --author "[author]" --since "1 week ago" --format markdown` |
 | "Show branches `main` and `develop`" | `git-tree --branches main,develop --format markdown` |
-| "Compact summary of last 20 commits" | `git-tree -n 20 --layout compact --format markdown` |
-| "Detailed view of recent commits" | `git-tree -n 10 --layout expanded --format markdown` |
+| "Compact summary of last 20 commits" | `git-tree -20 --layout compact --format markdown` |
+| "Detailed view of recent commits" | `git-tree -10 --layout expanded --format markdown` |
 
-> **IMPORTANT FOR AI AGENTS**: When rendering output into a chat response or markdown document, ALWAYS pass `--format markdown`. This strips raw terminal ANSI color escape sequences and wraps the tree in a cleanly formatted fenced code block. When running in an interactive terminal for the user, use the default `--format terminal`.
+> **IMPORTANT FOR AI AGENTS**: When rendering output into a chat response or markdown document, ALWAYS pass `--format markdown`. This strips raw terminal ANSI color escape sequences and wraps the tree in a cleanly formatted fenced code block. The output uses a clean 4-column layout (Graph, Hash + Relative Date, Description + Ref Badges, Author). When running directly in an interactive terminal for the user, use the default `--format terminal`.
 
 ---
 
@@ -48,7 +49,7 @@ When the user asks you questions about their Git repository, history, branches, 
 - `--no-tags`: Omit tag markers.
 
 ### Filtering
-- `-n, --max-count <N>`: Maximum commits to output.
+- `-<N>, -n <N>, --limit <N>, --max-count <N>`: Maximum commits to output (e.g. `-10`, `-50`, `-n 20`).
 - `--since <date>`: Show commits more recent than `<date>` (e.g. `2 days ago`, `2026-01-01`).
 - `--until <date>`: Show commits older than `<date>`.
 - `--author <pattern>`: Filter commits by author name or email regex.
@@ -65,6 +66,8 @@ When the user asks you questions about their Git repository, history, branches, 
 - `-d, --date <relative|iso|short>`: Date formatting (default: `relative`).
 - `-s, --style <curved|straight|ascii>`: Line drawing style (default: `curved`).
 - `-t, --theme <tokyo|catppuccin|nord|mono>`: Color theme for terminal output.
-- `--no-author`: Omit author column.
-- `--no-date`: Omit date column.
-- `--no-hash`: Omit commit hash column.
+- `-w, --width <columns>`: Target table width (auto-detected in TTY, default: 120).
+- `--hide-author` / `--no-author`: Omit author column.
+- `--hide-date` / `--no-date`: Omit date under commit hash.
+- `--hide-hash` / `--no-hash`: Omit commit hash column.
+- `--explain-flags`: Outputs machine-readable JSON schema of all flags.

@@ -63,7 +63,10 @@ program
   .option('--no-date', 'Hide date column')
   .option('--no-hash', 'Hide commit hash column')
   .option('--hash-len <len>', 'Short commit hash length', (v) => parseInt(v, 10), 7)
-  .option('-w, --width <columns>', 'Target table width in characters (default: 120)', (v) => parseInt(v, 10), 120);
+  .option('-w, --width <columns>', 'Target table width in characters (auto-detected in TTY, default: 120)', (v) => parseInt(v, 10))
+  .option('--hide-author', 'Hide author column')
+  .option('--hide-date', 'Hide date column')
+  .option('--hide-hash', 'Hide commit hash column');
 
 // Discovery helper for AI
 program.option('--explain-flags', 'Output machine-readable JSON schema of all flags for AI');
@@ -109,7 +112,7 @@ program.action(async (cliOpts) => {
           '--no-tags': 'Exclude tags',
         },
         filtering: {
-          '-n, --max-count <N>': 'Limit commit count',
+          '-<N>, -n, --limit, --max-count <N>': 'Limit commit count (e.g. -10, -n 20, --limit 50)',
           '--since <date>': 'Show commits newer than date',
           '--until <date>': 'Show commits older than date',
           '--author <pattern>': 'Filter commits by author regex',
@@ -126,6 +129,10 @@ program.action(async (cliOpts) => {
           '--date <relative|iso|short>': 'Timestamp format',
           '--style <curved|straight|ascii>': 'Line art style',
           '--theme <tokyo|catppuccin|nord|mono>': 'Color palette',
+          '-w, --width <columns>': 'Target table width (auto-detected in TTY, default 120)',
+          '--hide-author, --no-author': 'Hide author column',
+          '--hide-date, --no-date': 'Hide date column',
+          '--hide-hash, --no-hash': 'Hide commit hash column',
         },
       },
     };
@@ -172,12 +179,12 @@ program.action(async (cliOpts) => {
     color: cliOpts.color as ColorMode,
     theme: cliOpts.theme as ColorTheme,
 
-    showAuthor: cliOpts.author !== false,
-    showDate: cliOpts.date !== false,
-    showHash: cliOpts.hash !== false,
+    showAuthor: cliOpts.hideAuthor ? false : cliOpts.author !== false,
+    showDate: cliOpts.hideDate ? false : cliOpts.date !== false,
+    showHash: cliOpts.hideHash ? false : cliOpts.hash !== false,
     hashLen: cliOpts.hashLen || 7,
-    width: cliOpts.width
-      ? parseInt(cliOpts.width, 10)
+    width: typeof cliOpts.width === 'number' && !isNaN(cliOpts.width)
+      ? cliOpts.width
       : process.stdout.isTTY && process.stdout.columns
         ? Math.max(60, process.stdout.columns)
         : 120,

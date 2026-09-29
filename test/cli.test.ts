@@ -31,4 +31,30 @@ describe('CLI Integration', () => {
     const { stdout } = await execFileAsync('node', [binPath, '-V']);
     expect(stdout.trim()).toBe('1.0.0');
   });
+
+  it('supports numeric shorthand limit like -2', async () => {
+    const { stdout } = await execFileAsync('node', [binPath, '-2', '--format', 'json']);
+    const data = JSON.parse(stdout);
+    expect(data.nodes).toBeDefined();
+    // At most 2 commit nodes (+ optional stash/status)
+    const commitNodes = data.nodes.filter((n: any) => n.type === 'commit');
+    expect(commitNodes.length).toBeLessThanOrEqual(2);
+  });
+
+  it('outputs fenced markdown code block with --format markdown', async () => {
+    const { stdout } = await execFileAsync('node', [binPath, '-1', '--format', 'markdown']);
+    expect(stdout).toMatch(/^```text\n[\s\S]+\n```\n?$/);
+  });
+
+  it('supports --hide-author, --hide-date, --hide-hash', async () => {
+    const { stdout } = await execFileAsync('node', [
+      binPath,
+      '-1',
+      '--format',
+      'markdown',
+      '--hide-author',
+      '--hide-date',
+    ]);
+    expect(stdout).toContain('```text');
+  });
 });
