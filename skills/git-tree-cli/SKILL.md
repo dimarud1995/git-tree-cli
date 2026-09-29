@@ -40,7 +40,14 @@ When the user asks you questions about their Git repository, history, branches, 
 - `▲`: Stashed work (`stash@{0}`)
 - `○`: Dirty working tree state (unstaged/staged modifications)
 - `⚑`: Tag annotation
+- `◎`: Portal glyph (branch departs to or emerges from distant commit, avoiding line spam)
 - `╭─ ╰─ │`: Rounded smooth branch connection curves
+
+### Commit Type Badges (Title Column)
+- `[MERGE]`: Dedicated **red** badge on merge commits (2+ parents)
+- `[REBASE]`: Dedicated **purple** badge on rebase / cherry-picked commits
+- `[FAST-FORWARD]`: Dedicated **cyan** badge on fast-forward merges
+- `[SQUASH]`: Dedicated **amber** badge on squashed commits
 
 ---
 
@@ -67,6 +74,8 @@ When the user asks you questions about their Git repository, history, branches, 
 - `--status` / `--no-status` / `--only-status`: Toggle working tree status.
 
 ### Presentation & Output
+- `--lines <portal|full>`: Graph lines mode. `portal` (default) uses `◎` portals to eliminate line spam across distant branches; `full` renders continuous vertical lines.
+- `--full-lines`: Shortcut for `--lines full` (legacy continuous line graph).
 - `-f, --format <terminal|markdown|json>`: Output format. Use `markdown` for AI responses, `json` for machine processing.
 - `-l, --layout <compact|normal|expanded>`: Density mode.
 - `-d, --date <relative|iso|short>`: Date formatting (default: `relative`).

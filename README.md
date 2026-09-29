@@ -104,6 +104,7 @@ git-tree install-skill claude
 | **Tag Reference** | `⚑` | Annotated or lightweight tag (e.g. `[⚑ v1.0.0]`) |
 | **Remote Branch** | `▹` | Remote-tracking branch (e.g. `▹ origin/main`) |
 | **Branch Connectors**| `╭─ ╰─ │` | Rounded smooth box-drawing curves |
+| **Portal (Branch Exit/Entry)** | `◎` | Clean portal eliminating line spam for distant/dormant branches |
 
 ---
 
@@ -151,6 +152,12 @@ git-tree --only-status         # Show ONLY uncommitted status
 
 ### 4. Layout & Styling
 ```bash
+# Graph Lines Routing (Line Spam Prevention)
+git-tree                       # Portal mode (default): uses ◎ portals for distant merges/branches to eliminate line clutter
+git-tree --full-lines          # Full lines mode: draws continuous vertical lines across all rows (legacy mode)
+git-tree --lines full          # Same as --full-lines
+git-tree --lines portal        # Explicit portal mode
+
 # Layout modes
 git-tree --layout compact      # Dense single-line mode (omits author/date)
 git-tree --layout normal       # Default balanced view (4 columns, date below hash)
@@ -183,10 +190,18 @@ git-tree --style straight      # Sharp corners (┌─ └─)
 git-tree --style ascii         # Pure ASCII (| / \ *)
 ```
 
-### 5. Smart Perceptual Author Color Engine
+### 5. Dedicated Commit Type Badges
+Non-regular commits display high-visibility badges in the title column to instantly identify repository operations:
+- **`[MERGE]`**: Dedicated **bold red** badge on merge commits (2+ parents).
+- **`[REBASE]`**: Dedicated **bold purple** badge on rebase and cherry-picked commits.
+- **`[FAST-FORWARD]`**: Dedicated **bold cyan** badge on fast-forward merges.
+- **`[SQUASH]`**: Dedicated **bold amber** badge on squash-and-merge commits.
+- Regular commits display clean titles with 0 badge clutter.
+
+### 6. Smart Perceptual Author Color Engine
 Every author is automatically assigned a unique, deterministic 24-bit TrueColor hex color using a fast FNV-1a hash with bit avalanche mixing. The colors are dynamically calibrated against WCAG relative luminance ($Y \approx 0.22 \pm 0.02$) to mathematically guarantee high contrast and effortless readability on **both dark and light terminal backgrounds** ($\ge 5.0:1$ contrast against black, $\ge 3.8:1$ against white). All of this happens under the hood with 0 configuration.
 
-### 6. AI Discovery
+### 7. AI Discovery
 ```bash
 git-tree --explain-flags       # Machine-readable JSON schema of all capabilities
 ```

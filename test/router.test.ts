@@ -201,8 +201,8 @@ describe('Graph Router', () => {
       },
     ];
 
-    const nodes = buildGraphNodes(commits, cleanStatus, [], defaultOptions);
-    const items = routeGraph(nodes);
+    const nodes = buildGraphNodes(commits, cleanStatus, [], { ...defaultOptions, lines: 'full' });
+    const items = routeGraph(nodes, 'full');
 
     const b2Item = items.find(
       (it) => it.kind === 'node' && it.row.node.id === 'b2'
@@ -214,6 +214,132 @@ describe('Graph Router', () => {
       // b3 must be assigned lane 3 (or higher), NOT lane 1
       expect(b2Item.row.forkToLanes).not.toContain(1);
       expect(b2Item.row.forkToLanes).toContain(3);
+    }
+  });
+
+  it('routes distant merge parents to portalForks instead of open tracks in portal mode', () => {
+    const commits: GitCommit[] = [
+      {
+        hash: 'm1',
+        shortHash: 'm1',
+        parents: ['trunk1', 'external_branch'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 500,
+        subject: 'Merge distant branch',
+        refs: [],
+        isMerge: true,
+        isRoot: false,
+        isHead: true,
+      },
+      {
+        hash: 'trunk1',
+        shortHash: 'trunk1',
+        parents: [],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 400,
+        subject: 'Trunk commit',
+        refs: [],
+        isMerge: false,
+        isRoot: true,
+        isHead: false,
+      },
+    ];
+
+    const nodes = buildGraphNodes(commits, cleanStatus, [], defaultOptions);
+    const items = routeGraph(nodes, 'portal');
+
+    const m1Item = items.find((it) => it.kind === 'node' && it.row.node.id === 'm1');
+    expect(m1Item).toBeDefined();
+    if (m1Item && m1Item.kind === 'node') {
+      // Merge commit is on lane 0
+      expect(m1Item.row.lane).toBe(0);
+      // External/distant parent is in portalForks, NOT kept open in forkToLanes
+      expect(m1Item.row.portalForks).toBeDefined();
+      expect(m1Item.row.portalForks!.length).toBeGreaterThan(0);
+      expect(m1Item.row.forkToLanes).toHaveLength(0);
+    }
+  });
+
+  it('routes dormant branches with distance > threshold into portalExits to prevent line spam', () => {
+    // Commit c1 on branch A, parent is c5 (4 rows away > PORTAL_DISTANCE_THRESHOLD 3)
+    const commits: GitCommit[] = [
+      {
+        hash: 'c1',
+        shortHash: 'c1',
+        parents: ['c5'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 500,
+        subject: 'Branch A commit',
+        refs: [],
+        isMerge: false,
+        isRoot: false,
+        isHead: true,
+      },
+      {
+        hash: 'c2',
+        shortHash: 'c2',
+        parents: ['c3'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 400,
+        subject: 'Branch B commit 1',
+        refs: [],
+        isMerge: false,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'c3',
+        shortHash: 'c3',
+        parents: ['c4'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 300,
+        subject: 'Branch B commit 2',
+        refs: [],
+        isMerge: false,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'c4',
+        shortHash: 'c4',
+        parents: ['c5'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 200,
+        subject: 'Branch B commit 3',
+        refs: [],
+        isMerge: false,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'c5',
+        shortHash: 'c5',
+        parents: [],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 100,
+        subject: 'Common base commit',
+        refs: [],
+        isMerge: false,
+        isRoot: true,
+        isHead: false,
+      },
+    ];
+
+    const nodes = buildGraphNodes(commits, cleanStatus, [], defaultOptions);
+    const items = routeGraph(nodes, 'portal');
+
+    const c1Item = items.find((it) => it.kind === 'node' && it.row.node.id === 'c1');
+    expect(c1Item).toBeDefined();
+    if (c1Item && c1Item.kind === 'node') {
+      // Because c5 is distance 4 (> 3), c1 enters a portal to not spam lines during c2, c3, c4
+      expect(c1Item.row.portalExits).toContain(c1Item.row.lane);
     }
   });
 });

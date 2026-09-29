@@ -48,7 +48,7 @@ export async function generateGitTree(options: TreeCliOptions): Promise<string> 
     return '(No commits found matching criteria)';
   }
 
-  const items = routeGraph(nodes);
+  const items = routeGraph(nodes, options.lines || 'portal');
 
   // Render according to requested format
   if (options.format === 'json') {

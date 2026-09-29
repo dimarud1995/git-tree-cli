@@ -6,6 +6,7 @@ import {
   DateStyle,
   EntityFilter,
   LayoutMode,
+  LinesMode,
   LineStyle,
   OutputFormat,
   TreeCliOptions,
@@ -53,6 +54,8 @@ program
 
 // Presentation & Styling
 program
+  .option('--lines <mode>', 'Graph lines mode: portal (default, clean portals for distant branches), full (continuous vertical lines)', 'portal')
+  .option('--full-lines', 'Show full continuous vertical lines without portals')
   .option('-l, --layout <mode>', 'Layout mode: compact, normal, expanded', 'normal')
   .option('-f, --format <format>', 'Output format: terminal, markdown, json', 'terminal')
   .option('-d, --date <style>', 'Date style: relative, iso, short', 'relative')
@@ -132,6 +135,8 @@ program.action(async (cliOpts) => {
           '--status / --no-status / --only-status': 'Control dirty worktree status',
         },
         presentation: {
+          '--lines <portal|full>': 'Graph lines mode: portal (default, clean portals for distant branches), full (continuous vertical lines)',
+          '--full-lines': 'Shortcut for --lines full (legacy continuous graph lines)',
           '--columns <list>': 'Show only specified columns: graph,hash,date,title,description,author',
           '--skip-columns, --hide-columns <list>': 'Skip specific columns (e.g. --skip-columns graph,author)',
           '--no-graph, --hide-graph': 'Hide graph tree column',
@@ -186,6 +191,7 @@ program.action(async (cliOpts) => {
     stashes,
     status,
 
+    lines: cliOpts.fullLines ? 'full' : (cliOpts.lines as LinesMode) || 'portal',
     layout: cliOpts.layout as LayoutMode,
     format: cliOpts.format as OutputFormat,
     date: cliOpts.date as DateStyle,

@@ -98,4 +98,25 @@ describe('CLI Integration', () => {
     expect(stdout).toContain('```text');
     expect(stdout).toContain('Dima Rud');
   });
+
+  it('supports --lines portal (default) and --lines full / --full-lines', async () => {
+    const { stdout: portalOut } = await execFileAsync('node', [
+      binPath,
+      '-10',
+      '--lines',
+      'portal',
+      '--format',
+      'markdown',
+    ]);
+    expect(portalOut).toContain('```text');
+
+    const { stdout: fullOut } = await execFileAsync('node', [
+      binPath,
+      '-10',
+      '--full-lines',
+      '--format',
+      'markdown',
+    ]);
+    expect(fullOut).toContain('```text');
+  });
 });

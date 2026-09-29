@@ -46,6 +46,7 @@ export type DateStyle = 'relative' | 'iso' | 'short';
 export type LineStyle = 'curved' | 'straight' | 'ascii';
 export type ColorMode = 'always' | 'auto' | 'never';
 export type ColorTheme = 'tokyo' | 'catppuccin' | 'nord' | 'mono';
+export type LinesMode = 'portal' | 'full';
 
 export interface TreeCliOptions {
   // Scoping
@@ -69,6 +70,7 @@ export interface TreeCliOptions {
   status: EntityFilter;
 
   // Display & layout
+  lines?: LinesMode;
   layout: LayoutMode;
   format: OutputFormat;
   date: DateStyle;

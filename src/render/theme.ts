@@ -13,6 +13,10 @@ export interface ThemePalette {
   stash: string;
   dirty: string;
   merge: string;
+  mergeBadge: string;
+  rebaseBadge: string;
+  fastForwardBadge: string;
+  squashBadge: string;
 }
 
 export const THEMES: Record<ColorTheme, ThemePalette> = {
@@ -29,6 +33,10 @@ export const THEMES: Record<ColorTheme, ThemePalette> = {
     stash: '#ff9e64',
     dirty: '#f7768e',
     merge: '#bb9af7',
+    mergeBadge: '#f7768e',
+    rebaseBadge: '#bb9af7',
+    fastForwardBadge: '#7dcfff',
+    squashBadge: '#e0af68',
   },
   catppuccin: {
     lanes: ['#89b4fa', '#a6e3a1', '#f9e2af', '#cba6f7', '#f38ba8', '#94e2d5', '#fab387'],
@@ -43,6 +51,10 @@ export const THEMES: Record<ColorTheme, ThemePalette> = {
     stash: '#fab387',
     dirty: '#f38ba8',
     merge: '#cba6f7',
+    mergeBadge: '#f38ba8',
+    rebaseBadge: '#cba6f7',
+    fastForwardBadge: '#94e2d5',
+    squashBadge: '#f9e2af',
   },
   nord: {
     lanes: ['#88c0d0', '#a3be8c', '#ebcb8b', '#b48ead', '#bf616a', '#81a1c1', '#d08770'],
@@ -57,6 +69,10 @@ export const THEMES: Record<ColorTheme, ThemePalette> = {
     stash: '#d08770',
     dirty: '#bf616a',
     merge: '#b48ead',
+    mergeBadge: '#bf616a',
+    rebaseBadge: '#b48ead',
+    fastForwardBadge: '#88c0d0',
+    squashBadge: '#ebcb8b',
   },
   mono: {
     lanes: ['#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff'],
@@ -71,6 +87,10 @@ export const THEMES: Record<ColorTheme, ThemePalette> = {
     stash: '#ffffff',
     dirty: '#ffffff',
     merge: '#ffffff',
+    mergeBadge: '#ffffff',
+    rebaseBadge: '#ffffff',
+    fastForwardBadge: '#ffffff',
+    squashBadge: '#ffffff',
   },
 };
 

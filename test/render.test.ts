@@ -315,6 +315,114 @@ describe('Renderers', () => {
     // Line 0 should contain the start of the branch name alongside the badge icon
     expect(lines[0]).toContain('(▹ origin/');
   });
+
+  it('renders [MERGE] in red, [REBASE] in purple, [FAST-FORWARD] in cyan, and [SQUASH] in amber', () => {
+    const specialCommits: GitCommit[] = [
+      {
+        hash: 'm1000000000',
+        shortHash: 'm100000',
+        parents: ['p1', 'p2'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 400,
+        subject: 'Merge pull request #10 from branch',
+        refs: [],
+        isMerge: true,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'r1000000000',
+        shortHash: 'r100000',
+        parents: ['p1'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 300,
+        subject: 'rebase: sync with upstream changes (cherry picked from commit abc)',
+        refs: [],
+        isMerge: false,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'ff100000000',
+        shortHash: 'ff10000',
+        parents: ['p1'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 200,
+        subject: 'Merge branch feature-ff (fast-forward)',
+        refs: [],
+        isMerge: false,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'sq100000000',
+        shortHash: 'sq10000',
+        parents: ['p1'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 100,
+        subject: 'squash! fix typing error (#99)',
+        refs: [],
+        isMerge: false,
+        isRoot: false,
+        isHead: false,
+      },
+    ];
+
+    const colorOptions: TreeCliOptions = {
+      ...options,
+      color: 'always',
+      theme: 'tokyo',
+      status: 'exclude',
+    };
+
+    const nodes = buildGraphNodes(specialCommits, cleanStatus, [], colorOptions);
+    const items = routeGraph(nodes, 'portal');
+    const renderer = new TerminalRenderer(colorOptions);
+    const output = renderer.render(items);
+
+    expect(output).toContain('[MERGE]');
+    expect(output).toContain('[REBASE]');
+    expect(output).toContain('[FAST-FORWARD]');
+    expect(output).toContain('[SQUASH]');
+
+    // Tokyo theme colors:
+    // Red: 247;118;142 (#f7768e)
+    expect(output).toContain('247;118;142m[MERGE]');
+    // Purple: 187;154;247 (#bb9af7)
+    expect(output).toContain('187;154;247m[REBASE]');
+    // Cyan: 125;207;255 (#7dcfff)
+    expect(output).toContain('125;207;255m[FAST-FORWARD]');
+    // Amber: 224;175;104 (#e0af68)
+    expect(output).toContain('224;175;104m[SQUASH]');
+  });
+
+  it('renders portal fork glyph (◆──◎) on merge commits with distant parents in portal mode', () => {
+    const distantMerge: GitCommit = {
+      hash: 'm_dist',
+      shortHash: 'm_dist0',
+      parents: ['trunk_p', 'external_p'], // external_p is not in nodes -> distance Infinity
+      authorName: 'Dev',
+      authorEmail: 'dev@test.com',
+      authorDate: 200,
+      subject: 'Merge distant branch',
+      refs: [],
+      isMerge: true,
+      isRoot: false,
+      isHead: false,
+    };
+
+    const nodes = buildGraphNodes([distantMerge], cleanStatus, [], { ...options, status: 'exclude' });
+    const items = routeGraph(nodes, 'portal');
+    const renderer = new TerminalRenderer({ ...options, status: 'exclude' });
+    const output = renderer.render(items);
+
+    expect(output).toContain('◆──◎');
+  });
 });
+
 
 

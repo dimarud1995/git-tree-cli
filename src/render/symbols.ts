@@ -24,6 +24,7 @@ export interface SymbolsDefinition {
   cross: string;
   slashDownRight: string;
   slashDownLeft: string;
+  portal: string;
 }
 
 export const SYMBOLS: Record<LineStyle, SymbolsDefinition> = {
@@ -51,6 +52,7 @@ export const SYMBOLS: Record<LineStyle, SymbolsDefinition> = {
     cross: '┼',
     slashDownRight: '╲',
     slashDownLeft: '╱',
+    portal: '◎',
   },
   straight: {
     commit: '●',
@@ -76,6 +78,7 @@ export const SYMBOLS: Record<LineStyle, SymbolsDefinition> = {
     cross: '┼',
     slashDownRight: '\\',
     slashDownLeft: '/',
+    portal: '◎',
   },
   ascii: {
     commit: '*',
@@ -101,6 +104,7 @@ export const SYMBOLS: Record<LineStyle, SymbolsDefinition> = {
     cross: '+',
     slashDownRight: '\\',
     slashDownLeft: '/',
+    portal: 'o',
   },
 };
 

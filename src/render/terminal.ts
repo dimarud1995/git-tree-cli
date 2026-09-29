@@ -36,12 +36,19 @@ export class TerminalRenderer {
     for (const item of items) {
       if (item.kind === 'node') {
         const row = item.row;
-        maxLane = Math.max(maxLane, row.lane, ...row.activeLanes, ...row.forkToLanes);
+        maxLane = Math.max(
+          maxLane,
+          row.lane,
+          ...row.activeLanes,
+          ...row.forkToLanes,
+          ...(row.portalForks || [])
+        );
       } else {
         const conn = item.connector;
         maxLane = Math.max(
           maxLane,
           ...conn.activeLanes,
+          ...(conn.portalLanes || []),
           ...conn.transitions.map((t) => Math.max(t.fromLane, t.toLane))
         );
       }
@@ -185,7 +192,7 @@ export class TerminalRenderer {
         // Add spacer line between commits (in normal/expanded layout)
         if (this.options.layout !== 'compact' && i < items.length - 1) {
           if (this.columns.showGraph) {
-            const spacerCol1 = this.renderGraphContinuation(item.row, col1Width).trimEnd();
+            const spacerCol1 = this.renderGraphSpacer(item.row, col1Width).trimEnd();
             if (spacerCol1) {
               lines.push(spacerCol1);
             }
@@ -203,8 +210,8 @@ export class TerminalRenderer {
    * Render connector line (e.g. ├──┴──╯) padded to Column 1 width
    */
   private renderConnectorRow(connector: ConnectorRow, col1Width: number): string {
-    const { activeLanes, transitions } = connector;
-    if (transitions.length === 0) return '';
+    const { activeLanes, transitions, portalLanes = [] } = connector;
+    if (transitions.length === 0 && portalLanes.length === 0) return '';
 
     const charArray: { char: string; laneIndex: number; customColor?: string }[] = [];
     for (let c = 0; c < col1Width; c++) {
@@ -259,6 +266,14 @@ export class TerminalRenderer {
       const char = getBoxChar(up, right, down, left, this.symbols);
       if (char !== ' ') {
         charArray[c] = { char, laneIndex: charLaneIndex };
+      }
+    }
+
+    // Render portal glyphs on portalLanes
+    for (const pl of portalLanes) {
+      const idx = pl * LANE_WIDTH;
+      if (idx < col1Width) {
+        charArray[idx] = { char: this.symbols.portal, laneIndex: pl };
       }
     }
 
@@ -378,6 +393,35 @@ export class TerminalRenderer {
         }
       }
 
+      // Render portal forks (e.g. ◆──◎)
+      if (row.portalForks && row.portalForks.length > 0) {
+        for (const portalLane of row.portalForks) {
+          const startLane = Math.min(lane, portalLane);
+          const endLane = Math.max(lane, portalLane);
+          const startIdx = startLane * LANE_WIDTH;
+          const endIdx = endLane * LANE_WIDTH;
+
+          for (let c = startIdx + 1; c < endIdx && c < col1Width; c++) {
+            const l = Math.floor(c / LANE_WIDTH);
+            const isLaneCol = c % LANE_WIDTH === 0;
+
+            if (isLaneCol && charArray[c].char === this.symbols.vLine) {
+              charArray[c] = { char: this.symbols.cross[0], laneIndex: l };
+            } else if (charArray[c].char === ' ') {
+              charArray[c] = { char: this.symbols.hLine, laneIndex: portalLane };
+            }
+          }
+
+          const portalIdx = portalLane * LANE_WIDTH;
+          if (portalIdx < col1Width) {
+            charArray[portalIdx] = {
+              char: this.symbols.portal,
+              laneIndex: portalLane,
+            };
+          }
+        }
+      }
+
       col1FirstLine = padVisible(this.charsToString(charArray), col1Width);
       col1ContLine = padVisible(this.renderGraphContinuation(row, col1Width), col1Width);
     }
@@ -432,9 +476,14 @@ export class TerminalRenderer {
             const badges = this.renderRefs(node.commit.refs);
             if (badges) parts.push(badges);
           }
-          if (node.commit.isMerge) {
-            parts.push(this.colorizer.color(this.symbols.merge, this.colorizer.theme.merge));
+
+          // Dedicated commit type badge: [MERGE] in bold red, [REBASE] in purple,
+          // [FAST-FORWARD] in cyan, [SQUASH] in amber
+          const typeBadge = getCommitTypeBadge(node.commit, this.colorizer);
+          if (typeBadge) {
+            parts.push(typeBadge);
           }
+
           parts.push(this.colorizer.color(node.commit.subject, this.colorizer.theme.subject));
           descLines.push(...wrapText(parts.join(' '), col3Width));
         }
@@ -508,7 +557,7 @@ export class TerminalRenderer {
   }
 
   /**
-   * Helper to render vertical continuation lines for Column 1 when description wraps
+   * Helper to render vertical continuation lines for Column 1 when description wraps within the same node
    */
   private renderGraphContinuation(row: NodeRow, col1Width: number): string {
     const { node, lane, activeLanes, forkToLanes } = row;
@@ -529,6 +578,46 @@ export class TerminalRenderer {
       const idx = l * LANE_WIDTH;
       if (idx < col1Width) {
         charArray[idx] = { char: this.symbols.vLine, laneIndex: l };
+      }
+    }
+
+    return this.charsToString(charArray);
+  }
+
+  /**
+   * Helper to render spacer line between commits in normal/expanded layout
+   */
+  private renderGraphSpacer(row: NodeRow, col1Width: number): string {
+    const { node, lane, activeLanes, forkToLanes, portalExits = [] } = row;
+    const charArray: { char: string; laneIndex: number }[] = [];
+
+    for (let c = 0; c < col1Width; c++) {
+      charArray.push({ char: ' ', laneIndex: Math.floor(c / LANE_WIDTH) });
+    }
+
+    const allContinuingLanes = new Set([...activeLanes, ...forkToLanes]);
+    if (node.commit?.isRoot) {
+      allContinuingLanes.delete(lane);
+    } else {
+      allContinuingLanes.add(lane);
+    }
+
+    for (const pe of portalExits) {
+      allContinuingLanes.delete(pe);
+    }
+
+    for (const l of allContinuingLanes) {
+      const idx = l * LANE_WIDTH;
+      if (idx < col1Width) {
+        charArray[idx] = { char: this.symbols.vLine, laneIndex: l };
+      }
+    }
+
+    // Render portal glyph for exiting lanes on this spacer line
+    for (const pe of portalExits) {
+      const idx = pe * LANE_WIDTH;
+      if (idx < col1Width) {
+        charArray[idx] = { char: this.symbols.portal, laneIndex: pe };
       }
     }
 
@@ -576,4 +665,50 @@ export class TerminalRenderer {
       })
       .join('');
   }
+}
+
+/**
+ * Resolves a dedicated badge for special commit types:
+ * - [MERGE] in bold red for merge commits
+ * - [REBASE] in bold purple for rebased/cherry-picked commits
+ * - [FAST-FORWARD] in bold cyan for fast-forward commits
+ * - [SQUASH] in bold amber for squashed commits
+ */
+export function getCommitTypeBadge(commit: GitCommit, colorizer: Colorizer): string | null {
+  if (commit.isMerge) {
+    return colorizer.bold(colorizer.color('[MERGE]', colorizer.theme.mergeBadge));
+  }
+
+  const subject = commit.subject || '';
+  const body = commit.body || '';
+
+  // Check for squash
+  if (
+    /squash and merge/i.test(subject) ||
+    /^squash!/i.test(subject) ||
+    /\(squash\)/i.test(subject)
+  ) {
+    return colorizer.bold(colorizer.color('[SQUASH]', colorizer.theme.squashBadge));
+  }
+
+  // Check for rebase / cherry-pick
+  if (
+    /^rebase(\b|:)/i.test(subject) ||
+    /^fixup!/i.test(subject) ||
+    /cherry picked from/i.test(subject) ||
+    /cherry picked from/i.test(body)
+  ) {
+    return colorizer.bold(colorizer.color('[REBASE]', colorizer.theme.rebaseBadge));
+  }
+
+  // Check for fast-forward
+  if (
+    /fast-forward/i.test(subject) ||
+    /fast forward/i.test(subject) ||
+    (/^Merge (branch|pull request)/i.test(subject) && commit.parents.length <= 1)
+  ) {
+    return colorizer.bold(colorizer.color('[FAST-FORWARD]', colorizer.theme.fastForwardBadge));
+  }
+
+  return null;
 }
