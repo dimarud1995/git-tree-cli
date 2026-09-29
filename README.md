@@ -153,7 +153,7 @@ git-tree --only-status         # Show ONLY uncommitted status
 ### 4. Layout & Styling
 ```bash
 # Graph Lines Routing (Line Spam Prevention)
-git-tree                       # Portal mode (default): uses ◎ portals for distant merges/branches to eliminate line clutter
+git-tree                       # Portal mode (default): uses ◎ portals for distant merges/branches to eliminate line clutter, extending lines through empty space with a 1-line gap
 git-tree --full-lines          # Full lines mode: draws continuous vertical lines across all rows (legacy mode)
 git-tree --lines full          # Same as --full-lines
 git-tree --lines portal        # Explicit portal mode

@@ -41,7 +41,8 @@ export class TerminalRenderer {
           row.lane,
           ...row.activeLanes,
           ...row.forkToLanes,
-          ...(row.portalForks || [])
+          ...(row.portalForks || []),
+          ...(row.portalEntries || [])
         );
       } else {
         const conn = item.connector;
@@ -307,6 +308,16 @@ export class TerminalRenderer {
       for (const l of activeLanes) {
         if (l !== lane && l * LANE_WIDTH < col1Width) {
           charArray[l * LANE_WIDTH] = { char: this.symbols.vLine, laneIndex: l };
+        }
+      }
+
+      // Render portal entries (e.g. ◎) at start of extended lines filling empty space
+      if (row.portalEntries && row.portalEntries.length > 0) {
+        for (const pe of row.portalEntries) {
+          const idx = pe * LANE_WIDTH;
+          if (idx < col1Width) {
+            charArray[idx] = { char: this.symbols.portal, laneIndex: pe };
+          }
         }
       }
 

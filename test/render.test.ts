@@ -422,6 +422,91 @@ describe('Renderers', () => {
 
     expect(output).toContain('◆──◎');
   });
+
+  it('renders extended portal line with ◎ at start and │ filling empty space', () => {
+    const commits: GitCommit[] = [
+      {
+        hash: 'c0',
+        shortHash: 'c0',
+        parents: ['c4', 'c1'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 500,
+        subject: 'Child merge commit 0',
+        refs: [],
+        isMerge: true,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'c1',
+        shortHash: 'c1',
+        parents: ['c2'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 400,
+        subject: 'Branch commit 1',
+        refs: [],
+        isMerge: false,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'c2',
+        shortHash: 'c2',
+        parents: ['c3'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 300,
+        subject: 'Branch commit 2',
+        refs: [],
+        isMerge: false,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'c3',
+        shortHash: 'c3',
+        parents: [],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 200,
+        subject: 'Branch commit 3',
+        refs: [],
+        isMerge: false,
+        isRoot: true,
+        isHead: false,
+      },
+      {
+        hash: 'c4',
+        shortHash: 'c4',
+        parents: [],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 100,
+        subject: 'Parent commit 4',
+        refs: [],
+        isMerge: false,
+        isRoot: true,
+        isHead: false,
+      },
+    ];
+
+    const nodes = buildGraphNodes(commits, cleanStatus, [], { ...options, status: 'exclude', layout: 'compact' });
+    const items = routeGraph(nodes, 'portal');
+    const renderer = new TerminalRenderer({ ...options, status: 'exclude', layout: 'compact' });
+    const output = renderer.render(items);
+
+    // In compact layout:
+    // c0: ●
+    // c1: gap (lane 0 blank)
+    // c2: ◎ on lane 0 (teleport from beginning)
+    // c3: │ on lane 0
+    // c4: ● on lane 0
+    const lines = output.split('\n');
+    expect(lines.some((l) => l.startsWith('◎'))).toBe(true);
+    expect(lines.some((l) => l.startsWith('│'))).toBe(true);
+  });
 });
 
 

@@ -74,7 +74,7 @@ When the user asks you questions about their Git repository, history, branches, 
 - `--status` / `--no-status` / `--only-status`: Toggle working tree status.
 
 ### Presentation & Output
-- `--lines <portal|full>`: Graph lines mode. `portal` (default) uses `◎` portals to eliminate line spam across distant branches; `full` renders continuous vertical lines.
+- `--lines <portal|full>`: Graph lines mode. `portal` (default) uses `◎` portals to eliminate line spam across distant branches, extending lines through empty space with a 1-line gap; `full` renders continuous vertical lines.
 - `--full-lines`: Shortcut for `--lines full` (legacy continuous line graph).
 - `-f, --format <terminal|markdown|json>`: Output format. Use `markdown` for AI responses, `json` for machine processing.
 - `-l, --layout <compact|normal|expanded>`: Density mode.

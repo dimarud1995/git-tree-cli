@@ -342,5 +342,122 @@ describe('Graph Router', () => {
       expect(c1Item.row.portalExits).toContain(c1Item.row.lane);
     }
   });
+
+  it('extends portal lines upwards through empty space with 1-node gap from previous commit', () => {
+    // c0 is on lane 0, distant parent is c5 (distance 5 > 3)
+    // c1, c2, c3, c4 are on lane 1
+    // c5 is on lane 0
+    const commits: GitCommit[] = [
+      {
+        hash: 'c0',
+        shortHash: 'c0',
+        parents: ['c5', 'c1'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 600,
+        subject: 'Child merge commit on lane 0',
+        refs: [],
+        isMerge: true,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'c1',
+        shortHash: 'c1',
+        parents: ['c2'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 500,
+        subject: 'Branch commit 1',
+        refs: [],
+        isMerge: false,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'c2',
+        shortHash: 'c2',
+        parents: ['c3'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 400,
+        subject: 'Branch commit 2',
+        refs: [],
+        isMerge: false,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'c3',
+        shortHash: 'c3',
+        parents: ['c4'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 300,
+        subject: 'Branch commit 3',
+        refs: [],
+        isMerge: false,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'c4',
+        shortHash: 'c4',
+        parents: [],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 200,
+        subject: 'Branch commit 4',
+        refs: [],
+        isMerge: false,
+        isRoot: true,
+        isHead: false,
+      },
+      {
+        hash: 'c5',
+        shortHash: 'c5',
+        parents: [],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 100,
+        subject: 'Parent commit on lane 0',
+        refs: [],
+        isMerge: false,
+        isRoot: true,
+        isHead: false,
+      },
+    ];
+
+    const nodes = buildGraphNodes(commits, cleanStatus, [], defaultOptions);
+    const items = routeGraph(nodes, 'portal');
+
+    const nodeItems = items.filter((it): it is { kind: 'node'; row: any } => it.kind === 'node');
+    expect(nodeItems).toHaveLength(6);
+
+    // c0: obstacle on lane 0 (index 0)
+    expect(nodeItems[0].row.lane).toBe(0);
+    expect(nodeItems[0].row.portalExits).toContain(0);
+
+    // c1 (index 1): 1-node gap! lane 0 is NOT active
+    expect(nodeItems[1].row.activeLanes).not.toContain(0);
+    expect(nodeItems[1].row.portalEntries || []).not.toContain(0);
+
+    // c2 (index 2 = obsNodeIdx + 2): teleport begins!
+    expect(nodeItems[2].row.portalEntries).toContain(0);
+    expect(nodeItems[2].row.activeLanes).toContain(0);
+
+    // c3 and c4 (indices 3, 4): extended line continues downwards with │
+    expect(nodeItems[3].row.activeLanes).toContain(0);
+    expect(nodeItems[4].row.activeLanes).toContain(0);
+
+    // c5 (index 5): destination commit sits on lane 0
+    expect(nodeItems[5].row.lane).toBe(0);
+
+    // No redundant connector right before c5
+    const connectorBeforeC5 = items.find(
+      (it, idx) => it.kind === 'connector' && items[idx + 1]?.kind === 'node' && (items[idx + 1] as any).row.node.id === 'c5'
+    );
+    expect(connectorBeforeC5).toBeUndefined();
+  });
 });
 

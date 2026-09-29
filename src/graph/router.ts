@@ -16,6 +16,7 @@ export interface NodeRow {
   mergeFromLanes: number[];
   portalForks?: number[];
   portalExits?: number[];
+  portalEntries?: number[];
   hasIncomingPortal?: boolean;
 }
 
@@ -30,6 +31,38 @@ export type GraphRenderItem =
   | { kind: 'connector'; connector: ConnectorRow };
 
 export const PORTAL_DISTANCE_THRESHOLD = 3;
+
+function isLaneBlockedAtItem(item: GraphRenderItem, targetLane: number): boolean {
+  if (item.kind === 'node') {
+    const row = item.row;
+    if (row.lane === targetLane) return true;
+    if (row.activeLanes.includes(targetLane)) return true;
+    if (row.forkToLanes.includes(targetLane)) return true;
+    if (row.portalForks?.includes(targetLane)) return true;
+    if (row.portalEntries?.includes(targetLane)) return true;
+    for (const fl of row.forkToLanes) {
+      if (Math.min(row.lane, fl) <= targetLane && targetLane <= Math.max(row.lane, fl)) {
+        return true;
+      }
+    }
+    for (const pf of row.portalForks || []) {
+      if (Math.min(row.lane, pf) <= targetLane && targetLane <= Math.max(row.lane, pf)) {
+        return true;
+      }
+    }
+    return false;
+  } else {
+    const conn = item.connector;
+    if (conn.activeLanes.includes(targetLane)) return true;
+    if (conn.portalLanes?.includes(targetLane)) return true;
+    for (const tr of conn.transitions) {
+      if (Math.min(tr.fromLane, tr.toLane) <= targetLane && targetLane <= Math.max(tr.fromLane, tr.toLane)) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
 
 /**
  * Assigns lanes and generates render items (nodes and transition connector lines).
@@ -107,20 +140,76 @@ export function routeGraph(
     }
 
     // If node has an incoming portal (was targeted by portal from above) and matchingLanes was empty:
-    // emit a connector row showing the emergence from portal ◎
+    // Try to extend the line upwards through empty space with a 1-node gap from previous commit.
     if (hasIncomingPortal && matchingLanes.length === 0) {
-      const activeSnapshot: number[] = [];
-      for (let l = 0; l < tracks.length; l++) {
-        if (tracks[l] !== null) activeSnapshot.push(l);
+      const nodeItems: { itemIndex: number; row: NodeRow }[] = [];
+      for (let j = 0; j < items.length; j++) {
+        const it = items[j];
+        if (it.kind === 'node') {
+          nodeItems.push({ itemIndex: j, row: it.row });
+        }
       }
-      items.push({
-        kind: 'connector',
-        connector: {
-          activeLanes: activeSnapshot,
-          transitions: [],
-          portalLanes: [nodeLane],
-        },
-      });
+
+      let obstacleItemIdx = -1;
+      for (let j = items.length - 1; j >= 0; j--) {
+        if (isLaneBlockedAtItem(items[j], nodeLane)) {
+          obstacleItemIdx = j;
+          break;
+        }
+      }
+
+      let startNodeIdx = 0;
+      if (obstacleItemIdx !== -1) {
+        let obsNodeIdx = -1;
+        for (let n = 0; n < nodeItems.length; n++) {
+          if (nodeItems[n].itemIndex <= obstacleItemIdx) {
+            obsNodeIdx = n;
+          }
+        }
+        // Keep 1-node gap from previous commit/obstacle if it exists there
+        startNodeIdx = obsNodeIdx + 2;
+      }
+
+      if (startNodeIdx < nodeItems.length) {
+        // Extend nodeLane upwards to fill empty space!
+        // Teleport from the beginning (startNodeIdx)
+        const startItem = nodeItems[startNodeIdx];
+        startItem.row.portalEntries = Array.from(
+          new Set([...(startItem.row.portalEntries || []), nodeLane])
+        );
+
+        // Add nodeLane to activeLanes from startNodeIdx to current node
+        for (let n = startNodeIdx; n < nodeItems.length; n++) {
+          nodeItems[n].row.activeLanes = Array.from(
+            new Set([...nodeItems[n].row.activeLanes, nodeLane])
+          ).sort((a, b) => a - b);
+        }
+
+        // Add nodeLane to any connector rows in this range
+        const firstItemIdx = startItem.itemIndex;
+        for (let j = firstItemIdx; j < items.length; j++) {
+          const item = items[j];
+          if (item.kind === 'connector') {
+            item.connector.activeLanes = Array.from(
+              new Set([...item.connector.activeLanes, nodeLane])
+            ).sort((a, b) => a - b);
+          }
+        }
+      } else {
+        // Not enough room for extended line with 1-node gap; fallback to connector row right above node
+        const activeSnapshot: number[] = [];
+        for (let l = 0; l < tracks.length; l++) {
+          if (tracks[l] !== null) activeSnapshot.push(l);
+        }
+        items.push({
+          kind: 'connector',
+          connector: {
+            activeLanes: activeSnapshot,
+            transitions: [],
+            portalLanes: [nodeLane],
+          },
+        });
+      }
     }
 
     // 2. Active lanes snapshot before forks
