@@ -317,18 +317,6 @@ export class TerminalRenderer {
         }
       }
 
-      // Render portal entries (e.g. ◎) at start of extended lines filling empty space
-      if (row.portalEntries && row.portalEntries.length > 0) {
-        for (const pe of row.portalEntries) {
-          const idx = pe * LANE_WIDTH;
-          if (idx < col1Width) {
-            const branch = row.laneBranches?.[pe] || row.branch;
-            const customColor = this.colorizer.branchColor(branch);
-            charArray[idx] = { char: this.symbols.portal, laneIndex: pe, customColor };
-          }
-        }
-      }
-
       let symbolChar = this.symbols.commit;
       let customColor: string | undefined;
 
