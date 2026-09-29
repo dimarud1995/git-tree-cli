@@ -117,7 +117,8 @@ export class TerminalRenderer {
     const gapStr = ' '.repeat(COLUMN_GAP);
 
     // 5. Render Rows
-    for (const item of items) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       if (item.kind === 'connector') {
         const connLine = this.renderConnectorRow(item.connector, col1Width);
         if (connLine) {
@@ -135,6 +136,15 @@ export class TerminalRenderer {
           gapStr
         );
         lines.push(...nodeLines);
+
+        // Add spacer line between commits (in normal/expanded layout)
+        // First column continues active vertical branch lines, other columns are empty
+        if (this.options.layout !== 'compact' && i < items.length - 1) {
+          const spacerCol1 = this.renderGraphContinuation(item.row, col1Width).trimEnd();
+          if (spacerCol1) {
+            lines.push(spacerCol1);
+          }
+        }
       }
     }
 
