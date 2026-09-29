@@ -85,4 +85,17 @@ describe('CLI Integration', () => {
     expect(stdout).not.toContain('●');
     expect(stdout).not.toContain('◉');
   });
+
+  it('supports filtering by --email or multiple emails', async () => {
+    const { stdout } = await execFileAsync('node', [
+      binPath,
+      '-5',
+      '--email',
+      'dima.rud1995@gmail.com, nonexistent@aryze.io',
+      '--format',
+      'markdown',
+    ]);
+    expect(stdout).toContain('```text');
+    expect(stdout).toContain('Dima Rud');
+  });
 });

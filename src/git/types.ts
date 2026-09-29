@@ -60,6 +60,7 @@ export interface TreeCliOptions {
   since?: string;
   until?: string;
   author?: string;
+  email?: string;
   grep?: string;
 
   // Entity toggles

@@ -122,12 +122,12 @@ git-tree --no-tags             # Hide tag references
 
 ### 2. Filtering (Which commits to show)
 ```bash
-git-tree -15                                 # Shorthand: limit to last 15 commits
-git-tree -n 15                               # Limit to 15 commits
-git-tree --limit 15                          # Limit to 15 commits (alias)
+git-tree -100                                # Shorthand: limit to last 100 commits (-n 100, --limit 100)
+git-tree --email "dmr@aryze.io"              # Filter by author email
+git-tree --email "dmr@aryze.io, alice@co.com"# Multiple comma-separated emails
+git-tree --author "Dmitry, Alice"            # Multiple comma-separated author names or regexes
 git-tree --since "2 weeks ago"               # Commits newer than date
 git-tree --until "2026-01-01"                # Commits older than date
-git-tree --author "Dmitry"                   # Filter by author name/email regex
 git-tree --grep "auth"                       # Filter by commit message regex
 ```
 

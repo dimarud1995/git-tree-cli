@@ -82,23 +82,44 @@ export class TerminalRenderer {
     }
 
     // 3. Determine Author Column Visibility
-    // If author filter is specified, show author banner at top and remove Column 4
-    const hasAuthorFilter = Boolean(this.options.author && this.options.author.trim());
-    const showAuthorCol = !hasAuthorFilter && this.columns.showAuthor;
+    const authorFilters = [
+      ...(this.options.author ? this.options.author.split(',') : []),
+      ...(this.options.email ? this.options.email.split(',') : []),
+    ].map((s) => s.trim()).filter(Boolean);
+
+    const hasAuthorFilter = authorFilters.length > 0;
+    const isSingleAuthor = authorFilters.length === 1;
+
+    // If single author filter, hide Column 4 by default (since all commits belong to that author).
+    // If multiple author filters, KEEP Column 4 visible so the user can distinguish between them!
+    const showAuthorCol = (!isSingleAuthor || this.options.columns !== undefined) && this.columns.showAuthor;
 
     // Top Author Banner when author filter is active
     if (hasAuthorFilter) {
-      let firstCommit: GitCommit | undefined;
-      for (const it of items) {
-        if (it.kind === 'node' && it.row.node.commit) {
-          firstCommit = it.row.node.commit;
-          break;
+      let bannerText = '';
+      let authorColor = this.colorizer.theme.author;
+
+      if (isSingleAuthor) {
+        let firstCommit: GitCommit | undefined;
+        for (const it of items) {
+          if (it.kind === 'node' && it.row.node.commit) {
+            firstCommit = it.row.node.commit;
+            break;
+          }
         }
+        const authorDisplayName = firstCommit
+          ? `${firstCommit.authorName} <${firstCommit.authorEmail}>`
+          : authorFilters[0];
+        authorColor = firstCommit
+          ? getAuthorColor(firstCommit.authorName)
+          : this.colorizer.theme.author;
+        bannerText = `Author: ${authorDisplayName}`;
+      } else {
+        bannerText = `Authors: ${authorFilters.join(', ')}`;
       }
-      const authorDisplayName = firstCommit ? `${firstCommit.authorName} <${firstCommit.authorEmail}>` : this.options.author!;
-      const authorColor = firstCommit ? getAuthorColor(firstCommit.authorName) : this.colorizer.theme.author;
+
       const banner = this.colorizer.bold(
-        this.colorizer.color(`Author: ${authorDisplayName}`, authorColor)
+        this.colorizer.color(bannerText, authorColor)
       );
       lines.push(banner);
       lines.push('');

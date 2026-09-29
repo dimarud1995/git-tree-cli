@@ -35,8 +35,8 @@ program
     parseInt(val, 10)
   )
   .option('--since <date>', 'Show commits more recent than a specific date')
-  .option('--until <date>', 'Show commits older than a specific date')
-  .option('--author <pattern>', 'Filter commits matching author name or email pattern')
+  .option('--author <pattern>', 'Filter commits matching author name or email pattern (comma-separated for multiple)')
+  .option('--email <pattern>', 'Filter commits matching author email pattern (comma-separated for multiple)')
   .option('--grep <pattern>', 'Filter commits matching commit message pattern');
 
 // Entity isolation toggles
@@ -122,7 +122,8 @@ program.action(async (cliOpts) => {
           '-<N>, -n, --limit, --max-count <N>': 'Limit commit count (e.g. -10, -n 20, --limit 50)',
           '--since <date>': 'Show commits newer than date',
           '--until <date>': 'Show commits older than date',
-          '--author <pattern>': 'Filter commits by author regex',
+          '--author <pattern>': 'Filter commits by author regex (comma-separated for multiple)',
+          '--email <pattern>': 'Filter commits by author email (comma-separated for multiple)',
           '--grep <pattern>': 'Filter commits by subject regex',
         },
         entityToggles: {
@@ -178,6 +179,7 @@ program.action(async (cliOpts) => {
     since: cliOpts.since,
     until: cliOpts.until,
     author: typeof cliOpts.author === 'string' ? cliOpts.author : undefined,
+    email: typeof cliOpts.email === 'string' ? cliOpts.email : undefined,
     grep: cliOpts.grep,
 
     merges,

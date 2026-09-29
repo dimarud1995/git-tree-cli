@@ -114,8 +114,19 @@ export function buildGitLogArgs(options: TreeCliOptions): string[] {
   if (options.until) {
     args.push(`--until=${options.until}`);
   }
+  const authorFilters: string[] = [];
   if (options.author) {
-    args.push(`--author=${options.author}`);
+    authorFilters.push(
+      ...options.author.split(',').map((s) => s.trim()).filter(Boolean)
+    );
+  }
+  if (options.email) {
+    authorFilters.push(
+      ...options.email.split(',').map((s) => s.trim()).filter(Boolean)
+    );
+  }
+  for (const filter of authorFilters) {
+    args.push(`--author=${filter}`);
   }
   if (options.grep) {
     args.push(`--grep=${options.grep}`);

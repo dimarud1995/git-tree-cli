@@ -18,6 +18,8 @@ When the user asks you questions about their Git repository, history, branches, 
 | "What do I have in my stash?" | `git-tree --only-stashes --format markdown` |
 | "What changed in the working tree / status?" | `git-tree --only-status --format markdown` |
 | "Show commits by [author] this week" | `git-tree --author "[author]" --since "1 week ago" --format markdown` |
+| "Show commits by email" | `git-tree --email "[email]" -100 --format markdown` |
+| "Show commits by multiple emails" | `git-tree --email "[email1],[email2]" -100 --format markdown` |
 | "Show branches `main` and `develop`" | `git-tree --branches main,develop --format markdown` |
 | "Show commits without graph tree (plain table)" | `git-tree --no-graph --format markdown` |
 | "Show only commit titles and authors" | `git-tree --columns title,author --format markdown` |
@@ -55,7 +57,8 @@ When the user asks you questions about their Git repository, history, branches, 
 - `-<N>, -n <N>, --limit <N>, --max-count <N>`: Maximum commits to output (e.g. `-10`, `-50`, `-n 20`).
 - `--since <date>`: Show commits more recent than `<date>` (e.g. `2 days ago`, `2026-01-01`).
 - `--until <date>`: Show commits older than `<date>`.
-- `--author <pattern>`: Filter commits by author name or email regex.
+- `--author <pattern>`: Filter commits by author name or regex (comma-separated for multiple).
+- `--email <pattern>`: Filter commits by author email (comma-separated for multiple, e.g. `--email "dmr@aryze.io, dev@example.com"`).
 - `--grep <pattern>`: Filter commits by commit message regex.
 
 ### Entity Isolation Toggles

@@ -103,5 +103,17 @@ describe('Git Parser', () => {
       expect(args).toContain('--merges');
       expect(args).not.toContain('--no-merges');
     });
+
+    it('supports multiple comma-separated authors and emails', () => {
+      const args = buildGitLogArgs({
+        ...defaultOptions,
+        author: 'Alice, Bob',
+        email: 'dmr@aryze.io, dev@example.com',
+      });
+      expect(args).toContain('--author=Alice');
+      expect(args).toContain('--author=Bob');
+      expect(args).toContain('--author=dmr@aryze.io');
+      expect(args).toContain('--author=dev@example.com');
+    });
   });
 });
