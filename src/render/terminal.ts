@@ -45,18 +45,28 @@ export class TerminalRenderer {
 
     const col1Width = Math.max((maxLane + 1) * LANE_WIDTH, 4);
 
-    // 2. Calculate Column 2 (Commit ID) Width dynamically
-    let maxIdLen = Math.max(this.options.hashLen || 7, 7);
+    // 2. Calculate Column 2 (Commit ID & Date) Width dynamically
+    let maxCol2Len = Math.max(this.options.hashLen || 7, 7);
     for (const item of items) {
       if (item.kind !== 'node') continue;
       const node = item.row.node;
       if (node.type === 'stash' && node.stash) {
-        maxIdLen = Math.max(maxIdLen, visibleWidth(node.stash.ref));
+        maxCol2Len = Math.max(maxCol2Len, visibleWidth(node.stash.ref));
+        if (this.options.showDate && this.options.layout !== 'compact') {
+          const d = formatDate(node.stash.date, this.options.date);
+          if (d) maxCol2Len = Math.max(maxCol2Len, visibleWidth(d));
+        }
       } else if (node.type === 'dirty') {
-        maxIdLen = Math.max(maxIdLen, visibleWidth('[DIRTY]'));
+        maxCol2Len = Math.max(maxCol2Len, visibleWidth('[DIRTY]'));
+      } else if (node.commit) {
+        maxCol2Len = Math.max(maxCol2Len, visibleWidth(node.commit.shortHash));
+        if (this.options.showDate && this.options.layout !== 'compact') {
+          const d = formatDate(node.commit.authorDate, this.options.date);
+          if (d) maxCol2Len = Math.max(maxCol2Len, visibleWidth(d));
+        }
       }
     }
-    const col2Width = maxIdLen;
+    const col2Width = maxCol2Len;
 
     // 2. Determine Author Column Visibility
     // If author filter is specified, show author banner at top and remove Column 4
@@ -81,31 +91,24 @@ export class TerminalRenderer {
     }
 
     // 3. Calculate Author Column Width (Column 4)
+    // Date/time is now in Column 2 beneath the hash, so Column 4 only contains the author name
     let col4Width = 0;
     if (showAuthorCol) {
-      let maxAuthorLen = 12;
+      let maxAuthorLen = 8;
       for (const item of items) {
         if (item.kind !== 'node') continue;
         const node = item.row.node;
         let authorText = '';
         if (node.commit) {
           authorText = node.commit.authorName;
-          if (this.options.showDate && this.options.layout !== 'compact') {
-            const d = formatDate(node.commit.authorDate, this.options.date);
-            if (d) authorText += `  ${d}`;
-          }
         } else if (node.type === 'dirty') {
           authorText = 'Working Tree';
         } else if (node.type === 'stash') {
           authorText = 'Stash';
-          if (this.options.showDate && node.stash) {
-            const d = formatDate(node.stash.date, this.options.date);
-            if (d) authorText += `  ${d}`;
-          }
         }
         maxAuthorLen = Math.max(maxAuthorLen, visibleWidth(authorText));
       }
-      col4Width = Math.min(Math.max(maxAuthorLen, 12), 30);
+      col4Width = Math.min(Math.max(maxAuthorLen, 8), 24);
     }
 
     // 4. Calculate Dynamic Description Column Width (Column 3)
@@ -332,7 +335,7 @@ export class TerminalRenderer {
     // --- Column 1: Continuation lines (for wrapped rows) ---
     const col1ContLine = padVisible(this.renderGraphContinuation(row, col1Width), col1Width);
 
-    // --- Column 2: Commit ID ---
+    // --- Column 2: Commit ID & Date on second row ---
     let col2IdStr = '';
     if (node.type === 'commit' && node.commit) {
       col2IdStr = this.colorizer.color(node.commit.shortHash, this.colorizer.theme.commitHash);
@@ -341,7 +344,19 @@ export class TerminalRenderer {
     } else if (node.type === 'stash' && node.stash) {
       col2IdStr = this.colorizer.color(node.stash.ref, this.colorizer.theme.stash);
     }
-    const col2PaddedFirst = padVisible(col2IdStr, col2Width);
+
+    let dateText = '';
+    if (this.options.showDate && this.options.layout !== 'compact') {
+      if (node.commit) {
+        dateText = formatDate(node.commit.authorDate, this.options.date);
+      } else if (node.type === 'stash' && node.stash) {
+        dateText = formatDate(node.stash.date, this.options.date);
+      }
+    }
+    const col2DateStr = dateText
+      ? this.colorizer.color(dateText, this.colorizer.theme.date)
+      : '';
+
     const col2PaddedBlank = ' '.repeat(col2Width);
 
     // --- Column 3: Description ---
@@ -377,34 +392,34 @@ export class TerminalRenderer {
     if (showAuthorCol) {
       if (node.commit) {
         col4AuthorStr = this.colorizer.color(node.commit.authorName, this.colorizer.theme.author);
-        if (this.options.showDate && this.options.layout !== 'compact') {
-          const d = formatDate(node.commit.authorDate, this.options.date);
-          if (d) {
-            col4AuthorStr += '  ' + this.colorizer.dim(d);
-          }
-        }
       } else if (node.type === 'dirty') {
         col4AuthorStr = this.colorizer.dim('Working Tree');
       } else if (node.type === 'stash') {
         col4AuthorStr = this.colorizer.dim('Stash');
-        if (this.options.showDate && node.stash) {
-          const d = formatDate(node.stash.date, this.options.date);
-          if (d) {
-            col4AuthorStr += '  ' + this.colorizer.dim(d);
-          }
-        }
       }
     }
 
+    const col3PaddedBlank = ' '.repeat(col3Width);
     const col4PaddedFirst = showAuthorCol ? padVisible(col4AuthorStr, col4Width) : '';
     const col4PaddedBlank = showAuthorCol ? ' '.repeat(col4Width) : '';
 
+    const rowLineCount = Math.max(descLines.length, dateText ? 2 : 1);
+
     // --- Build Multi-line Table Rows ---
     const resultLines: string[] = [];
-    for (let k = 0; k < descLines.length; k++) {
+    for (let k = 0; k < rowLineCount; k++) {
       const c1 = k === 0 ? col1FirstLine : col1ContLine;
-      const c2 = k === 0 ? col2PaddedFirst : col2PaddedBlank;
-      const c3 = padVisible(descLines[k], col3Width);
+
+      let c2: string;
+      if (k === 0) {
+        c2 = padVisible(col2IdStr, col2Width);
+      } else if (k === 1 && col2DateStr) {
+        c2 = padVisible(col2DateStr, col2Width);
+      } else {
+        c2 = col2PaddedBlank;
+      }
+
+      const c3 = k < descLines.length ? padVisible(descLines[k], col3Width) : col3PaddedBlank;
 
       if (showAuthorCol) {
         const c4 = k === 0 ? col4PaddedFirst : col4PaddedBlank;

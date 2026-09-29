@@ -243,5 +243,37 @@ describe('Renderers', () => {
     // Lane 0 gets ╭, lane 1 gets ┼, lane 2 has ◆
     expect(output).toContain('╭──┼──◆');
   });
+
+  it('places commit date in column 2 beneath commit hash and leaves column 4 for author only', () => {
+    const singleCommit: GitCommit = {
+      hash: 'a1b2c3d4e5f6',
+      shortHash: 'a1b2c3d',
+      parents: [],
+      authorName: 'Developer',
+      authorEmail: 'dev@example.com',
+      authorDate: Math.floor(Date.now() / 1000) - 7200, // 2h ago
+      subject: 'Single line commit',
+      refs: [],
+      isMerge: false,
+      isRoot: true,
+      isHead: true,
+    };
+
+    const nodes = buildGraphNodes([singleCommit], cleanStatus, [], { ...options, status: 'exclude' });
+    const items = routeGraph(nodes);
+    const renderer = new TerminalRenderer({ ...options, status: 'exclude' });
+    const output = renderer.render(items);
+    const lines = output.split('\n');
+
+    // First line: contains hash in col 2 and author in col 4
+    expect(lines[0]).toContain('a1b2c3d');
+    expect(lines[0]).toContain('Developer');
+    expect(lines[0]).not.toContain('2h ago');
+
+    // Second line: contains 2h ago in col 2, and does not contain Developer
+    expect(lines[1]).toContain('2h ago');
+    expect(lines[1]).not.toContain('Developer');
+  });
 });
+
 

@@ -25,7 +25,7 @@ export function formatDate(timestampSeconds: number, style: DateStyle): string {
   const diff = now - timestampSeconds;
 
   if (diff < 60) {
-    return 'just now';
+    return 'now';
   }
   if (diff < 3600) {
     const mins = Math.floor(diff / 60);
@@ -35,12 +35,13 @@ export function formatDate(timestampSeconds: number, style: DateStyle): string {
     const hours = Math.floor(diff / 3600);
     return `${hours}h ago`;
   }
-  if (diff < 172800) {
-    return 'yesterday';
-  }
-  if (diff < 2592000) {
+  if (diff < 604800) {
     const days = Math.floor(diff / 86400);
     return `${days}d ago`;
+  }
+  if (diff < 2592000) {
+    const weeks = Math.floor(diff / 604800);
+    return `${weeks}w ago`;
   }
   if (diff < 31536000) {
     const months = Math.floor(diff / 2592000);
