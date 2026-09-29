@@ -152,4 +152,96 @@ describe('Renderers', () => {
     const commitLine = lines.find((l) => l.includes('a1b2c3d'));
     expect(commitLine).toBeDefined();
   });
+
+  it('renders merge connectors with continuing trunk and terminating branch (├──╯)', () => {
+    const mergeCommits: GitCommit[] = [
+      {
+        hash: 'm1',
+        shortHash: 'm1',
+        parents: ['trunk1', 'feat1'],
+        authorName: 'Developer',
+        authorEmail: 'dev@test.com',
+        authorDate: 300,
+        subject: 'Merge commit',
+        refs: [],
+        isMerge: true,
+        isRoot: false,
+        isHead: true,
+      },
+      {
+        hash: 'feat1',
+        shortHash: 'feat1',
+        parents: ['trunk1'], // Feat1 merges back into trunk1
+        authorName: 'Developer',
+        authorEmail: 'dev@test.com',
+        authorDate: 200,
+        subject: 'Feature commit',
+        refs: [],
+        isMerge: false,
+        isRoot: false,
+        isHead: false,
+      },
+      {
+        hash: 'trunk1',
+        shortHash: 'trunk1',
+        parents: [],
+        authorName: 'Developer',
+        authorEmail: 'dev@test.com',
+        authorDate: 100,
+        subject: 'Trunk commit',
+        refs: [],
+        isMerge: false,
+        isRoot: true,
+        isHead: false,
+      },
+    ];
+
+    const nodes = buildGraphNodes(mergeCommits, cleanStatus, [], { ...options, status: 'exclude' });
+    const items = routeGraph(nodes);
+    const renderer = new TerminalRenderer({ ...options, status: 'exclude' });
+    const output = renderer.render(items);
+
+    // Should contain ├──╯ for the merge connector rather than disconnected ╰──╯
+    expect(output).toContain('├──╯');
+  });
+
+  it('renders bidirectional forks with roundTopLeft (╭) and cross (┼) for leftward forks', () => {
+    // Manually construct items simulating a node on lane 2 forking left to lane 0
+    const nodeItem = {
+      kind: 'node' as const,
+      row: {
+        node: {
+          id: 'test_node',
+          type: 'commit' as const,
+          parents: ['p0'],
+          children: [],
+          date: 100,
+          commit: {
+            hash: 'c1234567890',
+            shortHash: 'c123456',
+            parents: ['p0'],
+            authorName: 'Developer',
+            authorEmail: 'dev@test.com',
+            authorDate: 100,
+            subject: 'Leftward fork node',
+            refs: [],
+            isMerge: true,
+            isRoot: false,
+            isHead: false,
+          },
+        },
+        lane: 2,
+        activeLanes: [1, 2], // Lane 1 has a passing vertical line
+        forkToLanes: [0], // Fork left to lane 0!
+        mergeFromLanes: [],
+      },
+    };
+
+    const renderer = new TerminalRenderer({ ...options, status: 'exclude' });
+    const output = renderer.render([nodeItem]);
+
+    // Lane 0 gets ╭, lane 1 gets ┼, lane 2 has ◆
+    expect(output).toContain('╭──┼──◆');
+  });
 });
+

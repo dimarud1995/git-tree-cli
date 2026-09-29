@@ -151,4 +151,70 @@ describe('Graph Router', () => {
       expect(m1Item.row.forkToLanes).toContain(1);
     }
   });
+
+  it('does not reuse interior dead lanes when outer lanes remain active', () => {
+    // Commit graph:
+    // m1 (lane 0) forks to branch A (b1) and branch B (b2)
+    // branch A terminates early
+    // branch B continues
+    // branch B then forks a new branch C (b3)
+    // Branch C must get a new lane (lane 3) instead of reusing vacated lane 1
+    const commits: GitCommit[] = [
+      {
+        hash: 'm1',
+        shortHash: 'm1',
+        parents: ['trunk1', 'b1', 'b2'],
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 500,
+        subject: 'Merge commit',
+        refs: [],
+        isMerge: true,
+        isRoot: false,
+        isHead: true,
+      },
+      {
+        hash: 'b1',
+        shortHash: 'b1',
+        parents: [], // Root commit: terminates lane 1!
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 400,
+        subject: 'Branch A terminates',
+        refs: [],
+        isMerge: false,
+        isRoot: true,
+        isHead: false,
+      },
+      {
+        hash: 'b2',
+        shortHash: 'b2',
+        parents: ['b2_parent', 'b3'], // Forks a second parent (branch C)
+        authorName: 'Dev',
+        authorEmail: 'dev@test.com',
+        authorDate: 300,
+        subject: 'Branch B forks branch C',
+        refs: [],
+        isMerge: true,
+        isRoot: false,
+        isHead: false,
+      },
+    ];
+
+    const nodes = buildGraphNodes(commits, cleanStatus, [], defaultOptions);
+    const items = routeGraph(nodes);
+
+    const b2Item = items.find(
+      (it) => it.kind === 'node' && it.row.node.id === 'b2'
+    );
+    expect(b2Item).toBeDefined();
+    if (b2Item && b2Item.kind === 'node') {
+      // b2 sits on lane 2
+      expect(b2Item.row.lane).toBe(2);
+      // b3 must be assigned lane 3 (or higher), NOT lane 1
+      expect(b2Item.row.forkToLanes).not.toContain(1);
+      expect(b2Item.row.forkToLanes).toContain(3);
+    }
+  });
 });
+

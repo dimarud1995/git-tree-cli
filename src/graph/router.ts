@@ -11,6 +11,7 @@ export interface NodeRow {
   lane: number;
   activeLanes: number[];
   forkToLanes: number[];
+  existingForkLanes?: number[];
   mergeFromLanes: number[];
 }
 
@@ -47,14 +48,10 @@ export function routeGraph(nodes: GraphNode[]): GraphRenderItem[] {
     const mergeFromLanes: number[] = [];
 
     if (matchingLanes.length === 0) {
-      // Find the first empty slot or append
-      const emptySlot = tracks.findIndex((t) => t === null);
-      if (emptySlot !== -1) {
-        nodeLane = emptySlot;
-      } else {
-        nodeLane = tracks.length;
-        tracks.push(null);
-      }
+      // Always allocate a new lane at tracks.length so new branches never reuse
+      // an interior vacated slot while other branches are active to its right
+      nodeLane = tracks.length;
+      tracks.push(null);
     } else {
       // The node sits on the lowest matching lane
       nodeLane = matchingLanes[0];
@@ -62,6 +59,10 @@ export function routeGraph(nodes: GraphNode[]): GraphRenderItem[] {
       for (let m = 1; m < matchingLanes.length; m++) {
         mergeFromLanes.push(matchingLanes[m]);
         tracks[matchingLanes[m]] = null;
+      }
+      // Trim trailing null tracks immediately so new forks do not skip pruned outer lanes
+      while (tracks.length > 0 && tracks[tracks.length - 1] === null) {
+        tracks.pop();
       }
     }
 
@@ -75,6 +76,7 @@ export function routeGraph(nodes: GraphNode[]): GraphRenderItem[] {
 
     // 3. Process parents to assign future lane tracks
     const forkToLanes: number[] = [];
+    const existingForkLanes: number[] = [];
     const parents = node.parents;
 
     if (parents.length === 0) {
@@ -91,15 +93,12 @@ export function routeGraph(nodes: GraphNode[]): GraphRenderItem[] {
         const existingLane = tracks.findIndex((t) => t === parentId);
         if (existingLane !== -1) {
           forkToLanes.push(existingLane);
+          existingForkLanes.push(existingLane);
         } else {
-          // Find or create a new lane for this parent
-          let newLane = tracks.findIndex((t) => t === null);
-          if (newLane === -1 || newLane === nodeLane) {
-            newLane = tracks.length;
-            tracks.push(parentId);
-          } else {
-            tracks[newLane] = parentId;
-          }
+          // Always allocate a new lane at tracks.length so parents never reuse
+          // interior dead slots, keeping lanes contiguous and avoiding gaps
+          const newLane = tracks.length;
+          tracks.push(parentId);
           forkToLanes.push(newLane);
         }
       }
@@ -113,6 +112,7 @@ export function routeGraph(nodes: GraphNode[]): GraphRenderItem[] {
         lane: nodeLane,
         activeLanes: Array.from(new Set([...activeLanes, ...forkToLanes])).sort((a, b) => a - b),
         forkToLanes,
+        existingForkLanes,
         mergeFromLanes,
       },
     });

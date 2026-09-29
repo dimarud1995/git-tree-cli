@@ -1,7 +1,7 @@
 import { GitCommit, GitRef, GitStatusSummary, TreeCliOptions } from '../git/types.js';
 import { GraphRenderItem, NodeRow, ConnectorRow } from '../graph/router.js';
 import { Colorizer } from './theme.js';
-import { SYMBOLS, SymbolsDefinition } from './symbols.js';
+import { SYMBOLS, SymbolsDefinition, getBoxChar } from './symbols.js';
 import { formatDate } from '../utils/date.js';
 import { padVisible, wrapText, visibleWidth } from '../utils/wrap.js';
 
@@ -152,53 +152,65 @@ export class TerminalRenderer {
   }
 
   /**
-   * Render connector line (e.g. ╰──╯) padded to Column 1 width
+   * Render connector line (e.g. ├──┴──╯) padded to Column 1 width
    */
   private renderConnectorRow(connector: ConnectorRow, col1Width: number): string {
     const { activeLanes, transitions } = connector;
     if (transitions.length === 0) return '';
 
-    const charArray: { char: string; laneIndex: number }[] = [];
+    const charArray: { char: string; laneIndex: number; customColor?: string }[] = [];
     for (let c = 0; c < col1Width; c++) {
       charArray.push({ char: ' ', laneIndex: Math.floor(c / LANE_WIDTH) });
     }
 
-    // Active vertical lanes
-    for (const l of activeLanes) {
-      const idx = l * LANE_WIDTH;
-      if (idx < col1Width) {
-        charArray[idx] = { char: this.symbols.vLine, laneIndex: l };
-      }
-    }
+    const fromLanes = new Set(transitions.map((t) => t.fromLane));
+    const toLanes = new Set(transitions.map((t) => t.toLane));
 
-    // Transitions
-    for (const tr of transitions) {
-      const start = Math.min(tr.fromLane, tr.toLane);
-      const end = Math.max(tr.fromLane, tr.toLane);
-      const startIdx = start * LANE_WIDTH;
-      const endIdx = end * LANE_WIDTH;
+    for (let c = 0; c < col1Width; c++) {
+      const isLaneCol = c % LANE_WIDTH === 0;
+      const lane = Math.floor(c / LANE_WIDTH);
 
-      if (startIdx < col1Width) {
-        charArray[startIdx] = {
-          char: this.symbols.roundBottomRight === '╯' ? '╰' : this.symbols.mergeLeft,
-          laneIndex: start,
-        };
-      }
+      let up = false;
+      let down = false;
+      let left = false;
+      let right = false;
+      let charLaneIndex = lane;
 
-      for (let c = startIdx + 1; c < endIdx && c < col1Width; c++) {
-        const lane = Math.floor(c / LANE_WIDTH);
-        if (charArray[c].char === this.symbols.vLine) {
-          charArray[c] = { char: this.symbols.cross[0], laneIndex: lane };
-        } else {
-          charArray[c] = { char: this.symbols.hLine, laneIndex: start };
+      if (isLaneCol) {
+        if (activeLanes.includes(lane)) {
+          up = true;
+          // Continues downwards if it's not terminating as a fromLane, OR if it's a toLane
+          if (!fromLanes.has(lane) || toLanes.has(lane)) {
+            down = true;
+          }
+        } else if (toLanes.has(lane)) {
+          down = true;
         }
       }
 
-      if (endIdx < col1Width) {
-        charArray[endIdx] = {
-          char: this.symbols.roundBottomRight,
-          laneIndex: end,
-        };
+      // Check horizontal spans of transitions
+      for (const tr of transitions) {
+        const start = Math.min(tr.fromLane, tr.toLane);
+        const end = Math.max(tr.fromLane, tr.toLane);
+        const spanStart = start * LANE_WIDTH;
+        const spanEnd = end * LANE_WIDTH;
+
+        if (c > spanStart && c <= spanEnd) {
+          left = true;
+        }
+        if (c >= spanStart && c < spanEnd) {
+          right = true;
+        }
+        if (c >= spanStart && c <= spanEnd) {
+          if (!isLaneCol || fromLanes.has(lane)) {
+            charLaneIndex = tr.fromLane;
+          }
+        }
+      }
+
+      const char = getBoxChar(up, right, down, left, this.symbols);
+      if (char !== ' ') {
+        charArray[c] = { char, laneIndex: charLaneIndex };
       }
     }
 
@@ -258,24 +270,60 @@ export class TerminalRenderer {
       charArray[nodeIdx] = { char: symbolChar, laneIndex: lane, customColor };
     }
 
+    // Render forks (both rightward and leftward)
     if (forkToLanes.length > 0) {
-      const maxForkLane = Math.max(...forkToLanes);
-      const forkIdx = maxForkLane * LANE_WIDTH;
+      for (const forkLane of forkToLanes) {
+        const startLane = Math.min(lane, forkLane);
+        const endLane = Math.max(lane, forkLane);
+        const startIdx = startLane * LANE_WIDTH;
+        const endIdx = endLane * LANE_WIDTH;
 
-      for (let c = nodeIdx + 1; c < forkIdx && c < col1Width; c++) {
-        const l = Math.floor(c / LANE_WIDTH);
-        if (charArray[c].char === this.symbols.vLine) {
-          charArray[c] = { char: this.symbols.teeRight[0], laneIndex: l };
-        } else {
-          charArray[c] = { char: this.symbols.hLine, laneIndex: lane };
+        // Draw horizontal line between commit node and fork target
+        for (let c = startIdx + 1; c < endIdx && c < col1Width; c++) {
+          const l = Math.floor(c / LANE_WIDTH);
+          const isLaneCol = c % LANE_WIDTH === 0;
+
+          if (isLaneCol && charArray[c].char === this.symbols.vLine) {
+            charArray[c] = { char: this.symbols.cross[0], laneIndex: l };
+          } else if (charArray[c].char === ' ') {
+            charArray[c] = { char: this.symbols.hLine, laneIndex: forkLane };
+          }
         }
-      }
 
-      if (forkIdx < col1Width) {
-        charArray[forkIdx] = {
-          char: this.symbols.roundTopRight,
-          laneIndex: maxForkLane,
-        };
+        // Draw the corner or junction at the fork target
+        const forkIdx = forkLane * LANE_WIDTH;
+        if (forkIdx < col1Width) {
+          const isExistingLane = (row.existingForkLanes || []).includes(forkLane);
+          if (forkLane > lane) {
+            // Coming from the left, turning down
+            if (isExistingLane) {
+              charArray[forkIdx] = {
+                char: this.symbols.teeLeft,
+                laneIndex: forkLane,
+              };
+            } else {
+              const hasFurtherRight = forkToLanes.some((fl) => fl > forkLane);
+              charArray[forkIdx] = {
+                char: hasFurtherRight ? this.symbols.teeDown : this.symbols.roundTopRight,
+                laneIndex: forkLane,
+              };
+            }
+          } else {
+            // Coming from the right, turning down
+            if (isExistingLane) {
+              charArray[forkIdx] = {
+                char: this.symbols.teeRight,
+                laneIndex: forkLane,
+              };
+            } else {
+              const hasFurtherLeft = forkToLanes.some((fl) => fl < forkLane);
+              charArray[forkIdx] = {
+                char: hasFurtherLeft ? this.symbols.teeDown : this.symbols.roundTopLeft,
+                laneIndex: forkLane,
+              };
+            }
+          }
+        }
       }
     }
 
