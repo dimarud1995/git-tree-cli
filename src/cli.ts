@@ -62,7 +62,8 @@ program
   .option('--no-author', 'Hide author column')
   .option('--no-date', 'Hide date column')
   .option('--no-hash', 'Hide commit hash column')
-  .option('--hash-len <len>', 'Short commit hash length', (v) => parseInt(v, 10), 7);
+  .option('--hash-len <len>', 'Short commit hash length', (v) => parseInt(v, 10), 7)
+  .option('-w, --width <columns>', 'Target table width in characters (default: 120)', (v) => parseInt(v, 10), 120);
 
 // Discovery helper for AI
 program.option('--explain-flags', 'Output machine-readable JSON schema of all flags for AI');
@@ -157,7 +158,7 @@ program.action(async (cliOpts) => {
     maxCount: cliOpts.maxCount,
     since: cliOpts.since,
     until: cliOpts.until,
-    author: cliOpts.author,
+    author: typeof cliOpts.author === 'string' ? cliOpts.author : undefined,
     grep: cliOpts.grep,
 
     merges,
@@ -175,6 +176,7 @@ program.action(async (cliOpts) => {
     showDate: cliOpts.date !== false,
     showHash: cliOpts.hash !== false,
     hashLen: cliOpts.hashLen || 7,
+    width: cliOpts.width ? parseInt(cliOpts.width, 10) : 120,
   };
 
   try {

@@ -77,6 +77,7 @@ export interface TreeCliOptions {
   showDate: boolean;
   showHash: boolean;
   hashLen: number;
+  width?: number;
 
   // Repository path
   cwd?: string;

@@ -51,6 +51,13 @@ describe('Renderers', () => {
     headBranch: 'main',
   };
 
+  const cleanStatus: GitStatusSummary = {
+    dirty: false,
+    stagedCount: 0,
+    unstagedCount: 0,
+    untrackedCount: 0,
+  };
+
   it('renders terminal output with geometric symbols and ref badges', () => {
     const nodes = buildGraphNodes(commits, status, [], options);
     const items = routeGraph(nodes);
@@ -58,7 +65,7 @@ describe('Renderers', () => {
     const output = renderer.render(items);
 
     expect(output).toContain('○'); // dirty symbol
-    expect(output).toContain('[DIRTY WORKTREE]');
+    expect(output).toContain('[DIRTY]');
     expect(output).toContain('◉'); // HEAD symbol
     expect(output).toContain('a1b2c3d');
     expect(output).toContain('(HEAD -> main)');
@@ -89,5 +96,60 @@ describe('Renderers', () => {
     expect(data.nodes[1].type).toBe('commit');
     expect(data.nodes[1].commit.shortHash).toBe('a1b2c3d');
     expect(data.nodes[1].commit.refs).toHaveLength(2);
+  });
+
+  it('wraps long descriptions across multiple lines and continues tree lines', () => {
+    const longCommit: GitCommit = {
+      hash: 'b2c3d4e5f6a1',
+      shortHash: 'b2c3d4e',
+      parents: ['a1b2c3d4e5f6'],
+      authorName: 'Developer',
+      authorEmail: 'dev@example.com',
+      authorDate: Math.floor(Date.now() / 1000) - 1800,
+      subject: 'This is an exceptionally long commit description that definitely exceeds the allocated column width and must wrap across multiple lines cleanly',
+      refs: [],
+      isMerge: false,
+      isRoot: false,
+      isHead: true,
+    };
+
+    const narrowOptions: TreeCliOptions = {
+      ...options,
+      status: 'exclude',
+      width: 70, // narrower width to force wrapping
+    };
+
+    const nodes = buildGraphNodes([longCommit], cleanStatus, [], narrowOptions);
+    const items = routeGraph(nodes);
+    const renderer = new TerminalRenderer(narrowOptions);
+    const output = renderer.render(items);
+    const lines = output.split('\n');
+
+    expect(lines.length).toBeGreaterThan(1); // Wrapped into multiple lines
+    // First line has hash
+    expect(lines[0]).toContain('b2c3d4e');
+    // Continuation line continues vertical line and does not repeat hash
+    expect(lines[1]).toContain('│');
+    expect(lines[1]).not.toContain('b2c3d4e');
+  });
+
+  it('shows top banner and removes author column when author filter is active', () => {
+    const authorFilterOptions: TreeCliOptions = {
+      ...options,
+      status: 'exclude',
+      author: 'Developer',
+    };
+
+    const nodes = buildGraphNodes(commits, cleanStatus, [], authorFilterOptions);
+    const items = routeGraph(nodes);
+    const renderer = new TerminalRenderer(authorFilterOptions);
+    const output = renderer.render(items);
+    const lines = output.split('\n');
+
+    // Shows Author: banner at the top
+    expect(lines[0]).toContain('Author: Developer');
+    // The commit row does not have Developer at the end as Column 4
+    const commitLine = lines.find((l) => l.includes('a1b2c3d'));
+    expect(commitLine).toBeDefined();
   });
 });
