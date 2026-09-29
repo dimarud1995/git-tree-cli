@@ -76,6 +76,13 @@ export function buildGitLogArgs(options: TreeCliOptions): string[] {
     '--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%D%x00%s%x1e',
   ];
 
+  // Exclude internal plumbing refs
+  args.push('--exclude=refs/stash*');
+
+  if (options.tags === false) {
+    args.push('--exclude=refs/tags/*');
+  }
+
   // Scoping
   if (options.branches && options.branches.length > 0) {
     args.push(...options.branches);
@@ -88,10 +95,6 @@ export function buildGitLogArgs(options: TreeCliOptions): string[] {
     } else {
       args.push('--all');
     }
-  }
-
-  if (options.tags === false) {
-    args.push('--exclude=refs/tags/*');
   }
 
   // Merges filter
