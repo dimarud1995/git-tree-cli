@@ -213,3 +213,5 @@ MIT © Dmytro Rud
 
 <!-- theme note: Tokyo Night is enabled by default -->
 <!-- main branch updates -->
+
+<!-- CLI filter aliases -->
