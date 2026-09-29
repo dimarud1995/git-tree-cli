@@ -274,6 +274,47 @@ describe('Renderers', () => {
     expect(lines[1]).toContain('2h ago');
     expect(lines[1]).not.toContain('Developer');
   });
+
+  it('does not orphan badge symbols or bracket prefixes on their own line when wrapping', () => {
+    const longBranchCommit: GitCommit = {
+      hash: '9e81419a1b2c',
+      shortHash: '9e81419',
+      parents: [],
+      authorName: 'Hugo B.',
+      authorEmail: 'hugo@example.com',
+      authorDate: Math.floor(Date.now() / 1000) - 86400, // 1d ago
+      subject:
+        'ci(platform): pin inventory-flow in the workflow-suites gate and give FullStackRampTests its Postgres (MON-299)',
+      refs: [
+        {
+          type: 'remote',
+          name: 'origin/feat/platform/mon-299-pin-inventory-flow-and-fullstack-postgres',
+          fullName: 'refs/remotes/origin/feat/platform/mon-299-pin-inventory-flow-and-fullstack-postgres',
+        },
+      ],
+      isMerge: false,
+      isRoot: true,
+      isHead: false,
+    };
+
+    const nodes = buildGraphNodes([longBranchCommit], cleanStatus, [], {
+      ...options,
+      status: 'exclude',
+      width: 100,
+    });
+    const items = routeGraph(nodes);
+    const renderer = new TerminalRenderer({ ...options, status: 'exclude', width: 100 });
+    const output = renderer.render(items);
+    const lines = output.split('\n');
+
+    // (▹ must NOT be on a line by itself!
+    for (const line of lines) {
+      expect(line.trim()).not.toBe('(▹');
+    }
+
+    // Line 0 should contain the start of the branch name alongside the badge icon
+    expect(lines[0]).toContain('(▹ origin/');
+  });
 });
 
 

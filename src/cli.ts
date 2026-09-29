@@ -176,7 +176,11 @@ program.action(async (cliOpts) => {
     showDate: cliOpts.date !== false,
     showHash: cliOpts.hash !== false,
     hashLen: cliOpts.hashLen || 7,
-    width: cliOpts.width ? parseInt(cliOpts.width, 10) : 120,
+    width: cliOpts.width
+      ? parseInt(cliOpts.width, 10)
+      : process.stdout.isTTY && process.stdout.columns
+        ? Math.max(60, process.stdout.columns)
+        : 120,
   };
 
   try {

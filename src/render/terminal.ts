@@ -468,17 +468,17 @@ export class TerminalRenderer {
 
     for (const ref of refs) {
       if (ref.type === 'head') {
-        const text = ref.name === 'HEAD' ? 'HEAD' : `HEAD -> ${ref.name}`;
+        const text = ref.name === 'HEAD' ? 'HEAD' : `HEAD\u00A0->\u00A0${ref.name}`;
         badges.push(
           this.colorizer.color(this.colorizer.bold(`(${text})`), this.colorizer.theme.head)
         );
       } else if (ref.type === 'tag') {
-        const text = `${this.symbols.tag} ${ref.name}`;
+        const text = `${this.symbols.tag}\u00A0${ref.name}`;
         badges.push(
           this.colorizer.color(this.colorizer.bold(`[${text}]`), this.colorizer.theme.tag)
         );
       } else if (ref.type === 'remote') {
-        const text = `${this.symbols.remote} ${ref.name}`;
+        const text = `${this.symbols.remote}\u00A0${ref.name}`;
         badges.push(this.colorizer.color(`(${text})`, this.colorizer.theme.remote));
       } else {
         badges.push(
