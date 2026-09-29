@@ -210,3 +210,5 @@ npm run build
 ## License
 
 MIT © Dmytro Rud
+
+<!-- main branch updates -->
