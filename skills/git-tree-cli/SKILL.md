@@ -40,7 +40,7 @@ When the user asks you questions about their Git repository, history, branches, 
 - `▲`: Stashed work (`stash@{0}`)
 - `○`: Dirty working tree state (unstaged/staged modifications)
 - `⚑`: Tag annotation
-- `◎`: Portal glyph (branch departs to or emerges from distant commit, avoiding line spam)
+- `◎`: Portal glyph (branch departs to or emerges from distant commit on dedicated connector rows between commits, avoiding line spam)
 - `╭─ ╰─ │`: Rounded smooth branch connection curves
 
 ### Commit Type Badges (Title Column)
@@ -74,7 +74,7 @@ When the user asks you questions about their Git repository, history, branches, 
 - `--status` / `--no-status` / `--only-status`: Toggle working tree status.
 
 ### Presentation & Output
-- `--lines <portal|full>`: Graph lines mode. `portal` (default) uses `◎` portals to eliminate line spam across distant branches, extending lines through empty space with a 1-line gap; `full` renders continuous vertical lines.
+- `--lines <portal|full>`: Graph lines mode. `portal` (default) uses `◎` portals on dedicated connector rows between commit rows for distant branches to prevent line clutter, branching with corners (`◆──╮`), providing an exact 1-line connection into portals, and filling empty space from teleports; `full` renders continuous vertical lines.
 - `--full-lines`: Shortcut for `--lines full` (legacy continuous line graph).
 - `-f, --format <terminal|markdown|json>`: Output format. Use `markdown` for AI responses, `json` for machine processing.
 - `-l, --layout <compact|normal|expanded>`: Density mode.

@@ -104,7 +104,7 @@ git-tree install-skill claude
 | **Tag Reference** | `⚑` | Annotated or lightweight tag (e.g. `[⚑ v1.0.0]`) |
 | **Remote Branch** | `▹` | Remote-tracking branch (e.g. `▹ origin/main`) |
 | **Branch Connectors**| `╭─ ╰─ │` | Rounded smooth box-drawing curves |
-| **Portal (Branch Exit/Entry)** | `◎` | Clean portal eliminating line spam for distant/dormant branches |
+| **Portal (Branch Exit/Entry)** | `◎` | Clean portal on connector rows between commits eliminating line spam |
 
 ---
 
@@ -153,7 +153,7 @@ git-tree --only-status         # Show ONLY uncommitted status
 ### 4. Layout & Styling
 ```bash
 # Graph Lines Routing (Line Spam Prevention)
-git-tree                       # Portal mode (default): uses ◎ portals for distant merges/branches to eliminate line clutter, extending lines through empty space with a 1-line gap
+git-tree                       # Portal mode (default): uses ◎ portals on dedicated connector rows between commit rows for distant merges/branches to eliminate line spam, with 1-line exit connections and space-filling teleport lines
 git-tree --full-lines          # Full lines mode: draws continuous vertical lines across all rows (legacy mode)
 git-tree --lines full          # Same as --full-lines
 git-tree --lines portal        # Explicit portal mode
