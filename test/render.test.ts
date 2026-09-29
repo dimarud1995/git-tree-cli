@@ -5,6 +5,7 @@ import { renderJson } from '../src/render/json.js';
 import { buildGraphNodes } from '../src/graph/dag.js';
 import { routeGraph } from '../src/graph/router.js';
 import { GitCommit, GitStatusSummary, TreeCliOptions } from '../src/git/types.js';
+import { getBranchColor } from '../src/utils/branch-color.js';
 
 describe('Renderers', () => {
   const options: TreeCliOptions = {
@@ -506,6 +507,59 @@ describe('Renderers', () => {
     const lines = output.split('\n');
     expect(lines.some((l) => l.startsWith('◎'))).toBe(true);
     expect(lines.some((l) => l.startsWith('│'))).toBe(true);
+  });
+
+  it('colors graph lines and commit glyphs according to branch name with color: always', () => {
+    const branchCommits: GitCommit[] = [
+      {
+        hash: 'b1',
+        shortHash: 'b1',
+        parents: [],
+        authorName: 'Alice',
+        authorEmail: 'alice@test.com',
+        authorDate: 200,
+        subject: 'feat: add billing module',
+        refs: [{ type: 'head', name: 'feature/billing', fullName: 'refs/heads/feature/billing' }],
+        isMerge: false,
+        isRoot: false,
+        isHead: true,
+      },
+      {
+        hash: 'b2',
+        shortHash: 'b2',
+        parents: [],
+        authorName: 'Bob',
+        authorEmail: 'bob@test.com',
+        authorDate: 100,
+        subject: 'Initial commit on main',
+        refs: [{ type: 'remote', name: 'main', fullName: 'refs/remotes/origin/main' }],
+        isMerge: false,
+        isRoot: true,
+        isHead: false,
+      },
+    ];
+
+    const nodes = buildGraphNodes(branchCommits, cleanStatus, [], {
+      ...options,
+      status: 'exclude',
+      color: 'always',
+    });
+    const items = routeGraph(nodes);
+    const renderer = new TerminalRenderer({
+      ...options,
+      status: 'exclude',
+      color: 'always',
+      theme: 'tokyo',
+    });
+    const output = renderer.render(items);
+
+    const billingHex = getBranchColor('feature/billing');
+    const r = parseInt(billingHex.slice(1, 3), 16);
+    const g = parseInt(billingHex.slice(3, 5), 16);
+    const b = parseInt(billingHex.slice(5, 7), 16);
+    const billingAnsi = `\x1b[38;2;${r};${g};${b}m`;
+
+    expect(output).toContain(billingAnsi);
   });
 });
 

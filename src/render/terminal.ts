@@ -266,7 +266,9 @@ export class TerminalRenderer {
 
       const char = getBoxChar(up, right, down, left, this.symbols);
       if (char !== ' ') {
-        charArray[c] = { char, laneIndex: charLaneIndex };
+        const branch = connector.laneBranches?.[charLaneIndex];
+        const customColor = this.colorizer.branchColor(branch);
+        charArray[c] = { char, laneIndex: charLaneIndex, customColor };
       }
     }
 
@@ -274,7 +276,9 @@ export class TerminalRenderer {
     for (const pl of portalLanes) {
       const idx = pl * LANE_WIDTH;
       if (idx < col1Width) {
-        charArray[idx] = { char: this.symbols.portal, laneIndex: pl };
+        const branch = connector.portalBranches?.[pl] || connector.laneBranches?.[pl];
+        const customColor = this.colorizer.branchColor(branch);
+        charArray[idx] = { char: this.symbols.portal, laneIndex: pl, customColor };
       }
     }
 
@@ -307,7 +311,9 @@ export class TerminalRenderer {
 
       for (const l of activeLanes) {
         if (l !== lane && l * LANE_WIDTH < col1Width) {
-          charArray[l * LANE_WIDTH] = { char: this.symbols.vLine, laneIndex: l };
+          const branch = row.laneBranches?.[l];
+          const customColor = this.colorizer.branchColor(branch);
+          charArray[l * LANE_WIDTH] = { char: this.symbols.vLine, laneIndex: l, customColor };
         }
       }
 
@@ -316,7 +322,9 @@ export class TerminalRenderer {
         for (const pe of row.portalEntries) {
           const idx = pe * LANE_WIDTH;
           if (idx < col1Width) {
-            charArray[idx] = { char: this.symbols.portal, laneIndex: pe };
+            const branch = row.laneBranches?.[pe] || row.branch;
+            const customColor = this.colorizer.branchColor(branch);
+            charArray[idx] = { char: this.symbols.portal, laneIndex: pe, customColor };
           }
         }
       }
@@ -336,7 +344,6 @@ export class TerminalRenderer {
           customColor = this.colorizer.theme.head;
         } else if (node.commit.isMerge) {
           symbolChar = this.symbols.merge;
-          customColor = this.colorizer.theme.merge;
         } else if (node.commit.isRoot) {
           symbolChar = this.symbols.root;
         }
@@ -344,7 +351,8 @@ export class TerminalRenderer {
 
       const nodeIdx = lane * LANE_WIDTH;
       if (nodeIdx < col1Width) {
-        charArray[nodeIdx] = { char: symbolChar, laneIndex: lane, customColor };
+        const symbolColor = customColor || this.colorizer.branchColor(row.branch);
+        charArray[nodeIdx] = { char: symbolChar, laneIndex: lane, customColor: symbolColor };
       }
 
       // Render forks (both rightward and leftward)
@@ -355,15 +363,20 @@ export class TerminalRenderer {
           const startIdx = startLane * LANE_WIDTH;
           const endIdx = endLane * LANE_WIDTH;
 
+          const forkBranch = row.laneBranches?.[forkLane] || row.branch;
+          const forkColor = this.colorizer.branchColor(forkBranch);
+
           // Draw horizontal line between commit node and fork target
           for (let c = startIdx + 1; c < endIdx && c < col1Width; c++) {
             const l = Math.floor(c / LANE_WIDTH);
             const isLaneCol = c % LANE_WIDTH === 0;
 
             if (isLaneCol && charArray[c].char === this.symbols.vLine) {
-              charArray[c] = { char: this.symbols.cross[0], laneIndex: l };
+              const crossBranch = row.laneBranches?.[l];
+              const crossColor = this.colorizer.branchColor(crossBranch);
+              charArray[c] = { char: this.symbols.cross[0], laneIndex: l, customColor: crossColor };
             } else if (charArray[c].char === ' ') {
-              charArray[c] = { char: this.symbols.hLine, laneIndex: forkLane };
+              charArray[c] = { char: this.symbols.hLine, laneIndex: forkLane, customColor: forkColor };
             }
           }
 
@@ -371,35 +384,29 @@ export class TerminalRenderer {
           const forkIdx = forkLane * LANE_WIDTH;
           if (forkIdx < col1Width) {
             const isExistingLane = (row.existingForkLanes || []).includes(forkLane);
+            let cornerChar: string;
             if (forkLane > lane) {
               // Coming from the left, turning down
               if (isExistingLane) {
-                charArray[forkIdx] = {
-                  char: this.symbols.teeLeft,
-                  laneIndex: forkLane,
-                };
+                cornerChar = this.symbols.teeLeft;
               } else {
                 const hasFurtherRight = forkToLanes.some((fl) => fl > forkLane);
-                charArray[forkIdx] = {
-                  char: hasFurtherRight ? this.symbols.teeDown : this.symbols.roundTopRight,
-                  laneIndex: forkLane,
-                };
+                cornerChar = hasFurtherRight ? this.symbols.teeDown : this.symbols.roundTopRight;
               }
             } else {
               // Coming from the right, turning down
               if (isExistingLane) {
-                charArray[forkIdx] = {
-                  char: this.symbols.teeRight,
-                  laneIndex: forkLane,
-                };
+                cornerChar = this.symbols.teeRight;
               } else {
                 const hasFurtherLeft = forkToLanes.some((fl) => fl < forkLane);
-                charArray[forkIdx] = {
-                  char: hasFurtherLeft ? this.symbols.teeDown : this.symbols.roundTopLeft,
-                  laneIndex: forkLane,
-                };
+                cornerChar = hasFurtherLeft ? this.symbols.teeDown : this.symbols.roundTopLeft;
               }
             }
+            charArray[forkIdx] = {
+              char: cornerChar,
+              laneIndex: forkLane,
+              customColor: forkColor,
+            };
           }
         }
       }
@@ -412,14 +419,19 @@ export class TerminalRenderer {
           const startIdx = startLane * LANE_WIDTH;
           const endIdx = endLane * LANE_WIDTH;
 
+          const pfBranch = row.portalForkBranches?.[portalLane] || row.branch;
+          const pfColor = this.colorizer.branchColor(pfBranch);
+
           for (let c = startIdx + 1; c < endIdx && c < col1Width; c++) {
             const l = Math.floor(c / LANE_WIDTH);
             const isLaneCol = c % LANE_WIDTH === 0;
 
             if (isLaneCol && charArray[c].char === this.symbols.vLine) {
-              charArray[c] = { char: this.symbols.cross[0], laneIndex: l };
+              const crossBranch = row.laneBranches?.[l];
+              const crossColor = this.colorizer.branchColor(crossBranch);
+              charArray[c] = { char: this.symbols.cross[0], laneIndex: l, customColor: crossColor };
             } else if (charArray[c].char === ' ') {
-              charArray[c] = { char: this.symbols.hLine, laneIndex: portalLane };
+              charArray[c] = { char: this.symbols.hLine, laneIndex: portalLane, customColor: pfColor };
             }
           }
 
@@ -428,6 +440,7 @@ export class TerminalRenderer {
             charArray[portalIdx] = {
               char: this.symbols.portal,
               laneIndex: portalLane,
+              customColor: pfColor,
             };
           }
         }
@@ -572,7 +585,7 @@ export class TerminalRenderer {
    */
   private renderGraphContinuation(row: NodeRow, col1Width: number): string {
     const { node, lane, activeLanes, forkToLanes } = row;
-    const charArray: { char: string; laneIndex: number }[] = [];
+    const charArray: { char: string; laneIndex: number; customColor?: string }[] = [];
 
     for (let c = 0; c < col1Width; c++) {
       charArray.push({ char: ' ', laneIndex: Math.floor(c / LANE_WIDTH) });
@@ -588,7 +601,9 @@ export class TerminalRenderer {
     for (const l of allContinuingLanes) {
       const idx = l * LANE_WIDTH;
       if (idx < col1Width) {
-        charArray[idx] = { char: this.symbols.vLine, laneIndex: l };
+        const branch = row.laneBranches?.[l] || (l === lane ? row.branch : undefined);
+        const customColor = this.colorizer.branchColor(branch);
+        charArray[idx] = { char: this.symbols.vLine, laneIndex: l, customColor };
       }
     }
 
@@ -600,7 +615,7 @@ export class TerminalRenderer {
    */
   private renderGraphSpacer(row: NodeRow, col1Width: number): string {
     const { node, lane, activeLanes, forkToLanes, portalExits = [] } = row;
-    const charArray: { char: string; laneIndex: number }[] = [];
+    const charArray: { char: string; laneIndex: number; customColor?: string }[] = [];
 
     for (let c = 0; c < col1Width; c++) {
       charArray.push({ char: ' ', laneIndex: Math.floor(c / LANE_WIDTH) });
@@ -620,7 +635,9 @@ export class TerminalRenderer {
     for (const l of allContinuingLanes) {
       const idx = l * LANE_WIDTH;
       if (idx < col1Width) {
-        charArray[idx] = { char: this.symbols.vLine, laneIndex: l };
+        const branch = row.laneBranches?.[l] || (l === lane ? row.branch : undefined);
+        const customColor = this.colorizer.branchColor(branch);
+        charArray[idx] = { char: this.symbols.vLine, laneIndex: l, customColor };
       }
     }
 
@@ -628,7 +645,9 @@ export class TerminalRenderer {
     for (const pe of portalExits) {
       const idx = pe * LANE_WIDTH;
       if (idx < col1Width) {
-        charArray[idx] = { char: this.symbols.portal, laneIndex: pe };
+        const branch = row.laneBranches?.[pe] || row.branch;
+        const customColor = this.colorizer.branchColor(branch);
+        charArray[idx] = { char: this.symbols.portal, laneIndex: pe, customColor };
       }
     }
 

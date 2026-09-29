@@ -5,16 +5,20 @@ export interface LaneTransition {
   fromLane: number;
   toLane: number;
   kind: 'fork' | 'merge';
+  branch?: string;
 }
 
 export interface NodeRow {
   node: GraphNode;
   lane: number;
+  branch: string;
+  laneBranches: Record<number, string>;
   activeLanes: number[];
   forkToLanes: number[];
   existingForkLanes?: number[];
   mergeFromLanes: number[];
   portalForks?: number[];
+  portalForkBranches?: Record<number, string>;
   portalExits?: number[];
   portalEntries?: number[];
   hasIncomingPortal?: boolean;
@@ -22,8 +26,10 @@ export interface NodeRow {
 
 export interface ConnectorRow {
   activeLanes: number[];
+  laneBranches: Record<number, string>;
   transitions: LaneTransition[];
   portalLanes?: number[];
+  portalBranches?: Record<number, string>;
 }
 
 export type GraphRenderItem =
@@ -75,10 +81,13 @@ export function routeGraph(
   const items: GraphRenderItem[] = [];
   // tracks[i] is the target node id that lane i is waiting for
   let tracks: (string | null)[] = [];
+  let trackBranches: (string | null)[] = [];
 
   const nodeIndex = new Map<string, number>();
+  const nodeIndexMap = new Map<string, GraphNode>();
   for (let i = 0; i < nodes.length; i++) {
     nodeIndex.set(nodes[i].id, i);
+    nodeIndexMap.set(nodes[i].id, nodes[i]);
   }
 
   const getTargetDistance = (targetId: string, currentIndex: number): number => {
@@ -93,6 +102,7 @@ export function routeGraph(
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
     const nodeId = node.id;
+    const nodeBranch = node.branch || 'main';
 
     // 1. Identify which lanes were pointing to this node
     const matchingLanes: number[] = [];
@@ -121,21 +131,26 @@ export function routeGraph(
 
       if (reuseLane !== -1) {
         nodeLane = reuseLane;
+        trackBranches[nodeLane] = nodeBranch;
       } else {
         nodeLane = tracks.length;
         tracks.push(null);
+        trackBranches.push(nodeBranch);
       }
     } else {
       // The node sits on the lowest matching lane
       nodeLane = matchingLanes[0];
+      trackBranches[nodeLane] = nodeBranch;
       // Other matching lanes merge into this nodeLane
       for (let m = 1; m < matchingLanes.length; m++) {
         mergeFromLanes.push(matchingLanes[m]);
         tracks[matchingLanes[m]] = null;
+        trackBranches[matchingLanes[m]] = null;
       }
       // Trim trailing null tracks immediately
       while (tracks.length > 0 && tracks[tracks.length - 1] === null) {
         tracks.pop();
+        trackBranches.pop();
       }
     }
 
@@ -183,6 +198,7 @@ export function routeGraph(
           nodeItems[n].row.activeLanes = Array.from(
             new Set([...nodeItems[n].row.activeLanes, nodeLane])
           ).sort((a, b) => a - b);
+          nodeItems[n].row.laneBranches[nodeLane] = nodeBranch;
         }
 
         // Add nodeLane to any connector rows in this range
@@ -193,20 +209,28 @@ export function routeGraph(
             item.connector.activeLanes = Array.from(
               new Set([...item.connector.activeLanes, nodeLane])
             ).sort((a, b) => a - b);
+            item.connector.laneBranches[nodeLane] = nodeBranch;
           }
         }
       } else {
         // Not enough room for extended line with 1-node gap; fallback to connector row right above node
         const activeSnapshot: number[] = [];
+        const activeBranches: Record<number, string> = {};
         for (let l = 0; l < tracks.length; l++) {
-          if (tracks[l] !== null) activeSnapshot.push(l);
+          if (tracks[l] !== null) {
+            activeSnapshot.push(l);
+            if (trackBranches[l]) activeBranches[l] = trackBranches[l]!;
+          }
         }
+        activeBranches[nodeLane] = nodeBranch;
         items.push({
           kind: 'connector',
           connector: {
             activeLanes: activeSnapshot,
+            laneBranches: activeBranches,
             transitions: [],
             portalLanes: [nodeLane],
+            portalBranches: { [nodeLane]: nodeBranch },
           },
         });
       }
@@ -214,22 +238,29 @@ export function routeGraph(
 
     // 2. Active lanes snapshot before forks
     const activeLanes: number[] = [];
+    const currentLaneBranches: Record<number, string> = {};
     for (let l = 0; l < tracks.length; l++) {
       if (tracks[l] !== null || l === nodeLane) {
         activeLanes.push(l);
+        if (trackBranches[l]) {
+          currentLaneBranches[l] = trackBranches[l]!;
+        }
       }
     }
+    currentLaneBranches[nodeLane] = nodeBranch;
 
     // 3. Process parents to assign future lane tracks
     const forkToLanes: number[] = [];
     const existingForkLanes: number[] = [];
     const portalForks: number[] = [];
+    const portalForkBranches: Record<number, string> = {};
     const portalExits: number[] = [];
     const parents = node.parents;
 
     if (parents.length === 0) {
       // Root commit terminates this lane
       tracks[nodeLane] = null;
+      trackBranches[nodeLane] = null;
     } else {
       // First parent continues on this lane if within threshold
       const p0 = parents[0];
@@ -237,33 +268,43 @@ export function routeGraph(
 
       if (dist0 <= PORTAL_DISTANCE_THRESHOLD) {
         tracks[nodeLane] = p0;
+        trackBranches[nodeLane] = nodeBranch;
       } else {
         // Distant parent: enter portal and release lane!
         portalTargets.add(p0);
         portalExits.push(nodeLane);
         tracks[nodeLane] = null;
+        trackBranches[nodeLane] = null;
       }
 
       // Additional parents (e.g. merge commits)
       for (let p = 1; p < parents.length; p++) {
         const parentId = parents[p];
         const distP = getTargetDistance(parentId, i);
+        const parentNode = nodeIndexMap.get(parentId);
+        const pBranch = node.mergeSourceBranch || parentNode?.branch || nodeBranch;
 
         if (distP <= PORTAL_DISTANCE_THRESHOLD) {
           const existingLane = tracks.findIndex((t) => t === parentId);
           if (existingLane !== -1) {
             forkToLanes.push(existingLane);
             existingForkLanes.push(existingLane);
+            trackBranches[existingLane] = pBranch;
+            currentLaneBranches[existingLane] = pBranch;
           } else {
             const newLane = tracks.length;
             tracks.push(parentId);
+            trackBranches.push(pBranch);
             forkToLanes.push(newLane);
+            currentLaneBranches[newLane] = pBranch;
           }
         } else {
           // Portal fork!
           portalTargets.add(parentId);
           const portalLane = Math.max(nodeLane + 1, tracks.length);
           portalForks.push(portalLane);
+          portalForkBranches[portalLane] = pBranch;
+          currentLaneBranches[portalLane] = pBranch;
         }
       }
     }
@@ -274,11 +315,14 @@ export function routeGraph(
       row: {
         node,
         lane: nodeLane,
+        branch: nodeBranch,
+        laneBranches: currentLaneBranches,
         activeLanes: Array.from(new Set([...activeLanes, ...forkToLanes])).sort((a, b) => a - b),
         forkToLanes,
         existingForkLanes,
         mergeFromLanes,
         portalForks,
+        portalForkBranches,
         portalExits,
         hasIncomingPortal,
       },
@@ -299,17 +343,23 @@ export function routeGraph(
         const targetLane = nextMatchingLanes[0];
         const transitions: LaneTransition[] = [];
         for (let m = 1; m < nextMatchingLanes.length; m++) {
+          const fromL = nextMatchingLanes[m];
           transitions.push({
-            fromLane: nextMatchingLanes[m],
+            fromLane: fromL,
             toLane: targetLane,
             kind: 'merge',
+            branch: trackBranches[fromL] || nodeBranch,
           });
         }
 
         const connectorActiveLanes: number[] = [];
+        const connectorLaneBranches: Record<number, string> = {};
         for (let l = 0; l < tracks.length; l++) {
           if (tracks[l] !== null) {
             connectorActiveLanes.push(l);
+            if (trackBranches[l]) {
+              connectorLaneBranches[l] = trackBranches[l]!;
+            }
           }
         }
 
@@ -317,6 +367,7 @@ export function routeGraph(
           kind: 'connector',
           connector: {
             activeLanes: connectorActiveLanes,
+            laneBranches: connectorLaneBranches,
             transitions,
           },
         });
@@ -326,6 +377,7 @@ export function routeGraph(
     // Trim trailing null tracks
     while (tracks.length > 0 && tracks[tracks.length - 1] === null) {
       tracks.pop();
+      trackBranches.pop();
     }
   }
 

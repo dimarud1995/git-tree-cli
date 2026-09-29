@@ -4,6 +4,12 @@ import {
   GitStatusSummary,
   TreeCliOptions,
 } from '../git/types.js';
+import {
+  extractBranchFromRefs,
+  extractMergeBranches,
+  extractScopeFromSubject,
+  normalizeBranchName,
+} from '../utils/branch-color.js';
 
 export type NodeType = 'commit' | 'dirty' | 'stash';
 
@@ -16,6 +22,8 @@ export interface GraphNode {
   parents: string[];
   children: string[];
   date: number;
+  branch?: string;
+  mergeSourceBranch?: string;
 }
 
 /**
@@ -119,6 +127,77 @@ export function buildGraphNodes(
       if (parent && !parent.children.includes(node.id)) {
         parent.children.push(node.id);
       }
+    }
+  }
+
+  // 5. Resolve and propagate branch names across DAG
+  for (const node of nodes) {
+    if (node.type === 'dirty') {
+      node.branch = status.headBranch ? normalizeBranchName(status.headBranch) : 'HEAD';
+    } else if (node.type === 'stash') {
+      node.branch = 'stash';
+    } else if (node.commit) {
+      const refBranch = extractBranchFromRefs(node.commit.refs);
+      if (refBranch) {
+        node.branch = refBranch;
+      }
+      if (node.commit.isMerge) {
+        const mergeInfo = extractMergeBranches(node.commit.subject);
+        if (mergeInfo?.target && !node.branch) {
+          node.branch = mergeInfo.target;
+        }
+        if (mergeInfo?.source) {
+          node.mergeSourceBranch = mergeInfo.source;
+        }
+      }
+    }
+  }
+
+  // Top-down propagation (from newest commit down to parent commits)
+  for (const node of nodes) {
+    if (!node.branch) {
+      let inheritedBranch: string | undefined;
+      for (const childId of node.children) {
+        const childNode = nodeMap.get(childId);
+        if (childNode) {
+          if (childNode.parents[0] === node.id && childNode.branch) {
+            inheritedBranch = childNode.branch;
+            break;
+          } else if (childNode.parents[1] === node.id && childNode.mergeSourceBranch) {
+            inheritedBranch = childNode.mergeSourceBranch;
+            break;
+          }
+        }
+      }
+      if (inheritedBranch) {
+        node.branch = inheritedBranch;
+      } else if (node.commit) {
+        const scope = extractScopeFromSubject(node.commit.subject);
+        if (scope) {
+          node.branch = scope;
+        }
+      }
+    }
+
+    if (node.branch && node.parents.length > 0) {
+      const p0 = nodeMap.get(node.parents[0]);
+      if (p0 && !p0.branch) {
+        p0.branch = node.branch;
+      }
+    }
+
+    if (node.mergeSourceBranch && node.parents.length > 1) {
+      const p1 = nodeMap.get(node.parents[1]);
+      if (p1 && !p1.branch) {
+        p1.branch = node.mergeSourceBranch;
+      }
+    }
+  }
+
+  // Fallback for any remaining unassigned nodes
+  for (const node of nodes) {
+    if (!node.branch) {
+      node.branch = 'main';
     }
   }
 

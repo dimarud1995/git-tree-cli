@@ -1,4 +1,5 @@
 import { ColorMode, ColorTheme } from '../git/types.js';
+import { getBranchColor } from '../utils/branch-color.js';
 
 export interface ThemePalette {
   lanes: string[]; // hex codes for branch lanes
@@ -140,6 +141,10 @@ export class Colorizer {
   public dim(text: string): string {
     if (!this.enabled || !text) return text;
     return `\x1b[2m${text}\x1b[22m`;
+  }
+
+  public branchColor(branchName?: string): string {
+    return getBranchColor(branchName, this.theme.lanes[0]);
   }
 
   public laneColor(laneIndex: number): string {
