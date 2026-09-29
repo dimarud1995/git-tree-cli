@@ -57,4 +57,32 @@ describe('CLI Integration', () => {
     ]);
     expect(stdout).toContain('```text');
   });
+
+  it('supports --columns title,author', async () => {
+    const { stdout } = await execFileAsync('node', [
+      binPath,
+      '-1',
+      '--format',
+      'markdown',
+      '--columns',
+      'title,author',
+    ]);
+    expect(stdout).toContain('```text');
+    expect(stdout).not.toContain('●');
+    expect(stdout).not.toContain('◉');
+  });
+
+  it('supports --skip-columns graph', async () => {
+    const { stdout } = await execFileAsync('node', [
+      binPath,
+      '-1',
+      '--format',
+      'markdown',
+      '--skip-columns',
+      'graph',
+    ]);
+    expect(stdout).toContain('```text');
+    expect(stdout).not.toContain('●');
+    expect(stdout).not.toContain('◉');
+  });
 });

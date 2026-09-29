@@ -14,6 +14,7 @@ export interface GitCommit {
   authorEmail: string;
   authorDate: number; // epoch in seconds
   subject: string;
+  body?: string;
   refs: GitRef[];
   isMerge: boolean;
   isRoot: boolean;
@@ -73,9 +74,14 @@ export interface TreeCliOptions {
   style: LineStyle;
   color: ColorMode;
   theme: ColorTheme;
-  showAuthor: boolean;
-  showDate: boolean;
-  showHash: boolean;
+  showAuthor?: boolean;
+  showDate?: boolean;
+  showHash?: boolean;
+  showGraph?: boolean;
+  showTitle?: boolean;
+  showDescription?: boolean;
+  columns?: string[];
+  skipColumns?: string[];
   hashLen: number;
   width?: number;
 

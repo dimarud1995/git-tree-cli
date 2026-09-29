@@ -4,6 +4,8 @@ import { Colorizer } from './theme.js';
 import { SYMBOLS, SymbolsDefinition, getBoxChar } from './symbols.js';
 import { formatDate } from '../utils/date.js';
 import { padVisible, wrapText, visibleWidth } from '../utils/wrap.js';
+import { resolveColumns, ResolvedColumns } from '../utils/columns.js';
+import { getAuthorColor } from '../utils/author-color.js';
 
 const LANE_WIDTH = 3;
 const COLUMN_GAP = 2; // 2 spaces between columns
@@ -12,9 +14,11 @@ export class TerminalRenderer {
   private colorizer: Colorizer;
   private symbols: SymbolsDefinition;
   private options: TreeCliOptions;
+  private columns: ResolvedColumns;
 
   constructor(options: TreeCliOptions) {
     this.options = options;
+    this.columns = resolveColumns(options);
     this.colorizer = new Colorizer(options.color, options.theme);
     this.symbols = SYMBOLS[options.style] || SYMBOLS.curved;
   }
@@ -43,35 +47,44 @@ export class TerminalRenderer {
       }
     }
 
-    const col1Width = Math.max((maxLane + 1) * LANE_WIDTH, 4);
+    let col1Width = 0;
+    if (this.columns.showGraph) {
+      col1Width = Math.max((maxLane + 1) * LANE_WIDTH, 4);
+    }
 
     // 2. Calculate Column 2 (Commit ID & Date) Width dynamically
-    let maxCol2Len = Math.max(this.options.hashLen || 7, 7);
-    for (const item of items) {
-      if (item.kind !== 'node') continue;
-      const node = item.row.node;
-      if (node.type === 'stash' && node.stash) {
-        maxCol2Len = Math.max(maxCol2Len, visibleWidth(node.stash.ref));
-        if (this.options.showDate && this.options.layout !== 'compact') {
-          const d = formatDate(node.stash.date, this.options.date);
-          if (d) maxCol2Len = Math.max(maxCol2Len, visibleWidth(d));
+    let col2Width = 0;
+    if (this.columns.showHash || this.columns.showDate) {
+      let maxCol2Len = this.columns.showHash ? Math.max(this.options.hashLen || 7, 7) : 0;
+      for (const item of items) {
+        if (item.kind !== 'node') continue;
+        const node = item.row.node;
+        if (this.columns.showHash) {
+          if (node.type === 'stash' && node.stash) {
+            maxCol2Len = Math.max(maxCol2Len, visibleWidth(node.stash.ref));
+          } else if (node.type === 'dirty') {
+            maxCol2Len = Math.max(maxCol2Len, visibleWidth('[DIRTY]'));
+          } else if (node.commit) {
+            maxCol2Len = Math.max(maxCol2Len, visibleWidth(node.commit.shortHash));
+          }
         }
-      } else if (node.type === 'dirty') {
-        maxCol2Len = Math.max(maxCol2Len, visibleWidth('[DIRTY]'));
-      } else if (node.commit) {
-        maxCol2Len = Math.max(maxCol2Len, visibleWidth(node.commit.shortHash));
-        if (this.options.showDate && this.options.layout !== 'compact') {
-          const d = formatDate(node.commit.authorDate, this.options.date);
-          if (d) maxCol2Len = Math.max(maxCol2Len, visibleWidth(d));
+        if (this.columns.showDate && this.options.layout !== 'compact') {
+          if (node.type === 'stash' && node.stash) {
+            const d = formatDate(node.stash.date, this.options.date);
+            if (d) maxCol2Len = Math.max(maxCol2Len, visibleWidth(d));
+          } else if (node.commit) {
+            const d = formatDate(node.commit.authorDate, this.options.date);
+            if (d) maxCol2Len = Math.max(maxCol2Len, visibleWidth(d));
+          }
         }
       }
+      col2Width = Math.max(maxCol2Len, 1);
     }
-    const col2Width = maxCol2Len;
 
-    // 2. Determine Author Column Visibility
+    // 3. Determine Author Column Visibility
     // If author filter is specified, show author banner at top and remove Column 4
     const hasAuthorFilter = Boolean(this.options.author && this.options.author.trim());
-    const showAuthorCol = !hasAuthorFilter && this.options.showAuthor !== false;
+    const showAuthorCol = !hasAuthorFilter && this.columns.showAuthor;
 
     // Top Author Banner when author filter is active
     if (hasAuthorFilter) {
@@ -83,15 +96,15 @@ export class TerminalRenderer {
         }
       }
       const authorDisplayName = firstCommit ? `${firstCommit.authorName} <${firstCommit.authorEmail}>` : this.options.author!;
+      const authorColor = firstCommit ? getAuthorColor(firstCommit.authorName) : this.colorizer.theme.author;
       const banner = this.colorizer.bold(
-        this.colorizer.color(`Author: ${authorDisplayName}`, this.colorizer.theme.author)
+        this.colorizer.color(`Author: ${authorDisplayName}`, authorColor)
       );
       lines.push(banner);
       lines.push('');
     }
 
-    // 3. Calculate Author Column Width (Column 4)
-    // Date/time is now in Column 2 beneath the hash, so Column 4 only contains the author name
+    // 4. Calculate Author Column Width (Column 4)
     let col4Width = 0;
     if (showAuthorCol) {
       let maxAuthorLen = 8;
@@ -111,26 +124,34 @@ export class TerminalRenderer {
       col4Width = Math.min(Math.max(maxAuthorLen, 8), 24);
     }
 
-    // 4. Calculate Dynamic Description Column Width (Column 3)
+    // 5. Calculate Dynamic Description Column Width (Column 3)
+    const showCol3 = this.columns.showTitle || this.columns.showDescription;
     const targetTotalWidth = this.options.width || 120;
-    const gapsCount = showAuthorCol ? 3 : 2;
-    const totalGaps = gapsCount * COLUMN_GAP;
-    const col3Width = Math.max(25, targetTotalWidth - col1Width - col2Width - col4Width - totalGaps);
+    const activeCols = [
+      this.columns.showGraph,
+      (this.columns.showHash || this.columns.showDate),
+      showCol3,
+      showAuthorCol,
+    ].filter(Boolean).length;
+    const totalGaps = Math.max(0, activeCols - 1) * COLUMN_GAP;
+    const otherWidths = col1Width + col2Width + col4Width;
+    const col3Width = showCol3 ? Math.max(20, targetTotalWidth - otherWidths - totalGaps) : 0;
 
     const gapStr = ' '.repeat(COLUMN_GAP);
 
-    // 5. Render Rows
+    // 6. Render Rows
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (item.kind === 'connector') {
-        const connLine = this.renderConnectorRow(item.connector, col1Width);
-        if (connLine) {
-          lines.push(connLine);
+        if (this.columns.showGraph) {
+          const connLine = this.renderConnectorRow(item.connector, col1Width);
+          if (connLine) {
+            lines.push(connLine);
+          }
         }
       } else {
         const nodeLines = this.renderNodeTableMultiLine(
           item.row,
-          maxLane,
           col1Width,
           col2Width,
           col3Width,
@@ -141,11 +162,14 @@ export class TerminalRenderer {
         lines.push(...nodeLines);
 
         // Add spacer line between commits (in normal/expanded layout)
-        // First column continues active vertical branch lines, other columns are empty
         if (this.options.layout !== 'compact' && i < items.length - 1) {
-          const spacerCol1 = this.renderGraphContinuation(item.row, col1Width).trimEnd();
-          if (spacerCol1) {
-            lines.push(spacerCol1);
+          if (this.columns.showGraph) {
+            const spacerCol1 = this.renderGraphContinuation(item.row, col1Width).trimEnd();
+            if (spacerCol1) {
+              lines.push(spacerCol1);
+            }
+          } else {
+            lines.push('');
           }
         }
       }
@@ -225,7 +249,6 @@ export class TerminalRenderer {
    */
   private renderNodeTableMultiLine(
     row: NodeRow,
-    maxLane: number,
     col1Width: number,
     col2Width: number,
     col3Width: number,
@@ -235,118 +258,123 @@ export class TerminalRenderer {
   ): string[] {
     const { node, lane, activeLanes, forkToLanes } = row;
 
-    // --- Column 1: Graph line 1 ---
-    const charArray: { char: string; laneIndex: number; customColor?: string }[] = [];
-    for (let c = 0; c < col1Width; c++) {
-      charArray.push({ char: ' ', laneIndex: Math.floor(c / LANE_WIDTH) });
-    }
+    let col1FirstLine = '';
+    let col1ContLine = '';
 
-    for (const l of activeLanes) {
-      if (l !== lane && l * LANE_WIDTH < col1Width) {
-        charArray[l * LANE_WIDTH] = { char: this.symbols.vLine, laneIndex: l };
+    if (this.columns.showGraph) {
+      // --- Column 1: Graph line 1 ---
+      const charArray: { char: string; laneIndex: number; customColor?: string }[] = [];
+      for (let c = 0; c < col1Width; c++) {
+        charArray.push({ char: ' ', laneIndex: Math.floor(c / LANE_WIDTH) });
       }
-    }
 
-    let symbolChar = this.symbols.commit;
-    let customColor: string | undefined;
-
-    if (node.type === 'dirty') {
-      symbolChar = this.symbols.dirty;
-      customColor = this.colorizer.theme.dirty;
-    } else if (node.type === 'stash') {
-      symbolChar = this.symbols.stash;
-      customColor = this.colorizer.theme.stash;
-    } else if (node.commit) {
-      if (node.commit.isHead) {
-        symbolChar = this.symbols.head;
-        customColor = this.colorizer.theme.head;
-      } else if (node.commit.isMerge) {
-        symbolChar = this.symbols.merge;
-        customColor = this.colorizer.theme.merge;
-      } else if (node.commit.isRoot) {
-        symbolChar = this.symbols.root;
-      }
-    }
-
-    const nodeIdx = lane * LANE_WIDTH;
-    if (nodeIdx < col1Width) {
-      charArray[nodeIdx] = { char: symbolChar, laneIndex: lane, customColor };
-    }
-
-    // Render forks (both rightward and leftward)
-    if (forkToLanes.length > 0) {
-      for (const forkLane of forkToLanes) {
-        const startLane = Math.min(lane, forkLane);
-        const endLane = Math.max(lane, forkLane);
-        const startIdx = startLane * LANE_WIDTH;
-        const endIdx = endLane * LANE_WIDTH;
-
-        // Draw horizontal line between commit node and fork target
-        for (let c = startIdx + 1; c < endIdx && c < col1Width; c++) {
-          const l = Math.floor(c / LANE_WIDTH);
-          const isLaneCol = c % LANE_WIDTH === 0;
-
-          if (isLaneCol && charArray[c].char === this.symbols.vLine) {
-            charArray[c] = { char: this.symbols.cross[0], laneIndex: l };
-          } else if (charArray[c].char === ' ') {
-            charArray[c] = { char: this.symbols.hLine, laneIndex: forkLane };
-          }
-        }
-
-        // Draw the corner or junction at the fork target
-        const forkIdx = forkLane * LANE_WIDTH;
-        if (forkIdx < col1Width) {
-          const isExistingLane = (row.existingForkLanes || []).includes(forkLane);
-          if (forkLane > lane) {
-            // Coming from the left, turning down
-            if (isExistingLane) {
-              charArray[forkIdx] = {
-                char: this.symbols.teeLeft,
-                laneIndex: forkLane,
-              };
-            } else {
-              const hasFurtherRight = forkToLanes.some((fl) => fl > forkLane);
-              charArray[forkIdx] = {
-                char: hasFurtherRight ? this.symbols.teeDown : this.symbols.roundTopRight,
-                laneIndex: forkLane,
-              };
-            }
-          } else {
-            // Coming from the right, turning down
-            if (isExistingLane) {
-              charArray[forkIdx] = {
-                char: this.symbols.teeRight,
-                laneIndex: forkLane,
-              };
-            } else {
-              const hasFurtherLeft = forkToLanes.some((fl) => fl < forkLane);
-              charArray[forkIdx] = {
-                char: hasFurtherLeft ? this.symbols.teeDown : this.symbols.roundTopLeft,
-                laneIndex: forkLane,
-              };
-            }
-          }
+      for (const l of activeLanes) {
+        if (l !== lane && l * LANE_WIDTH < col1Width) {
+          charArray[l * LANE_WIDTH] = { char: this.symbols.vLine, laneIndex: l };
         }
       }
+
+      let symbolChar = this.symbols.commit;
+      let customColor: string | undefined;
+
+      if (node.type === 'dirty') {
+        symbolChar = this.symbols.dirty;
+        customColor = this.colorizer.theme.dirty;
+      } else if (node.type === 'stash') {
+        symbolChar = this.symbols.stash;
+        customColor = this.colorizer.theme.stash;
+      } else if (node.commit) {
+        if (node.commit.isHead) {
+          symbolChar = this.symbols.head;
+          customColor = this.colorizer.theme.head;
+        } else if (node.commit.isMerge) {
+          symbolChar = this.symbols.merge;
+          customColor = this.colorizer.theme.merge;
+        } else if (node.commit.isRoot) {
+          symbolChar = this.symbols.root;
+        }
+      }
+
+      const nodeIdx = lane * LANE_WIDTH;
+      if (nodeIdx < col1Width) {
+        charArray[nodeIdx] = { char: symbolChar, laneIndex: lane, customColor };
+      }
+
+      // Render forks (both rightward and leftward)
+      if (forkToLanes.length > 0) {
+        for (const forkLane of forkToLanes) {
+          const startLane = Math.min(lane, forkLane);
+          const endLane = Math.max(lane, forkLane);
+          const startIdx = startLane * LANE_WIDTH;
+          const endIdx = endLane * LANE_WIDTH;
+
+          // Draw horizontal line between commit node and fork target
+          for (let c = startIdx + 1; c < endIdx && c < col1Width; c++) {
+            const l = Math.floor(c / LANE_WIDTH);
+            const isLaneCol = c % LANE_WIDTH === 0;
+
+            if (isLaneCol && charArray[c].char === this.symbols.vLine) {
+              charArray[c] = { char: this.symbols.cross[0], laneIndex: l };
+            } else if (charArray[c].char === ' ') {
+              charArray[c] = { char: this.symbols.hLine, laneIndex: forkLane };
+            }
+          }
+
+          // Draw the corner or junction at the fork target
+          const forkIdx = forkLane * LANE_WIDTH;
+          if (forkIdx < col1Width) {
+            const isExistingLane = (row.existingForkLanes || []).includes(forkLane);
+            if (forkLane > lane) {
+              // Coming from the left, turning down
+              if (isExistingLane) {
+                charArray[forkIdx] = {
+                  char: this.symbols.teeLeft,
+                  laneIndex: forkLane,
+                };
+              } else {
+                const hasFurtherRight = forkToLanes.some((fl) => fl > forkLane);
+                charArray[forkIdx] = {
+                  char: hasFurtherRight ? this.symbols.teeDown : this.symbols.roundTopRight,
+                  laneIndex: forkLane,
+                };
+              }
+            } else {
+              // Coming from the right, turning down
+              if (isExistingLane) {
+                charArray[forkIdx] = {
+                  char: this.symbols.teeRight,
+                  laneIndex: forkLane,
+                };
+              } else {
+                const hasFurtherLeft = forkToLanes.some((fl) => fl < forkLane);
+                charArray[forkIdx] = {
+                  char: hasFurtherLeft ? this.symbols.teeDown : this.symbols.roundTopLeft,
+                  laneIndex: forkLane,
+                };
+              }
+            }
+          }
+        }
+      }
+
+      col1FirstLine = padVisible(this.charsToString(charArray), col1Width);
+      col1ContLine = padVisible(this.renderGraphContinuation(row, col1Width), col1Width);
     }
-
-    const col1FirstLine = padVisible(this.charsToString(charArray), col1Width);
-
-    // --- Column 1: Continuation lines (for wrapped rows) ---
-    const col1ContLine = padVisible(this.renderGraphContinuation(row, col1Width), col1Width);
 
     // --- Column 2: Commit ID & Date on second row ---
     let col2IdStr = '';
-    if (node.type === 'commit' && node.commit) {
-      col2IdStr = this.colorizer.color(node.commit.shortHash, this.colorizer.theme.commitHash);
-    } else if (node.type === 'dirty') {
-      col2IdStr = this.colorizer.color('[DIRTY]', this.colorizer.theme.dirty);
-    } else if (node.type === 'stash' && node.stash) {
-      col2IdStr = this.colorizer.color(node.stash.ref, this.colorizer.theme.stash);
+    if (this.columns.showHash) {
+      if (node.type === 'commit' && node.commit) {
+        col2IdStr = this.colorizer.color(node.commit.shortHash, this.colorizer.theme.commitHash);
+      } else if (node.type === 'dirty') {
+        col2IdStr = this.colorizer.color('[DIRTY]', this.colorizer.theme.dirty);
+      } else if (node.type === 'stash' && node.stash) {
+        col2IdStr = this.colorizer.color(node.stash.ref, this.colorizer.theme.stash);
+      }
     }
 
     let dateText = '';
-    if (this.options.showDate && this.options.layout !== 'compact') {
+    if (this.columns.showDate && this.options.layout !== 'compact') {
       if (node.commit) {
         dateText = formatDate(node.commit.authorDate, this.options.date);
       } else if (node.type === 'stash' && node.stash) {
@@ -359,39 +387,51 @@ export class TerminalRenderer {
 
     const col2PaddedBlank = ' '.repeat(col2Width);
 
-    // --- Column 3: Description ---
-    let fullDescription = '';
-    if (node.type === 'dirty') {
-      const summary = node.dirtySummary;
-      const stats: string[] = [];
-      if (summary) {
-        if (summary.stagedCount > 0) stats.push(`+${summary.stagedCount} staged`);
-        if (summary.unstagedCount > 0) stats.push(`${summary.unstagedCount} unstaged`);
-        if (summary.untrackedCount > 0) stats.push(`${summary.untrackedCount} untracked`);
-      }
-      fullDescription = stats.length > 0 ? stats.join(', ') : 'No uncommitted changes';
-    } else if (node.type === 'stash' && node.stash) {
-      fullDescription = node.stash.message;
-    } else if (node.commit) {
-      const parts: string[] = [];
-      if (node.commit.refs.length > 0) {
-        const badges = this.renderRefs(node.commit.refs);
-        if (badges) parts.push(badges);
-      }
-      if (node.commit.isMerge) {
-        parts.push(this.colorizer.color(this.symbols.merge, this.colorizer.theme.merge));
-      }
-      parts.push(this.colorizer.color(node.commit.subject, this.colorizer.theme.subject));
-      fullDescription = parts.join(' ');
-    }
+    // --- Column 3: Title & Description ---
+    const showCol3 = this.columns.showTitle || this.columns.showDescription;
+    const descLines: string[] = [];
 
-    const descLines = wrapText(fullDescription, col3Width);
+    if (showCol3) {
+      if (node.type === 'dirty') {
+        const summary = node.dirtySummary;
+        const stats: string[] = [];
+        if (summary) {
+          if (summary.stagedCount > 0) stats.push(`+${summary.stagedCount} staged`);
+          if (summary.unstagedCount > 0) stats.push(`${summary.unstagedCount} unstaged`);
+          if (summary.untrackedCount > 0) stats.push(`${summary.untrackedCount} untracked`);
+        }
+        const fullDescription = stats.length > 0 ? stats.join(', ') : 'No uncommitted changes';
+        descLines.push(...wrapText(fullDescription, col3Width));
+      } else if (node.type === 'stash' && node.stash) {
+        descLines.push(...wrapText(node.stash.message, col3Width));
+      } else if (node.commit) {
+        if (this.columns.showTitle) {
+          const parts: string[] = [];
+          if (node.commit.refs.length > 0) {
+            const badges = this.renderRefs(node.commit.refs);
+            if (badges) parts.push(badges);
+          }
+          if (node.commit.isMerge) {
+            parts.push(this.colorizer.color(this.symbols.merge, this.colorizer.theme.merge));
+          }
+          parts.push(this.colorizer.color(node.commit.subject, this.colorizer.theme.subject));
+          descLines.push(...wrapText(parts.join(' '), col3Width));
+        }
+
+        // If description (body) is enabled and present, wrap and append below title
+        if (this.columns.showDescription && node.commit.body) {
+          const bodyLines = wrapText(this.colorizer.dim(node.commit.body), col3Width);
+          descLines.push(...bodyLines);
+        }
+      }
+    }
 
     // --- Column 4: Author (if enabled) ---
     let col4AuthorStr = '';
     if (showAuthorCol) {
       if (node.commit) {
-        col4AuthorStr = this.colorizer.color(node.commit.authorName, this.colorizer.theme.author);
+        const authorColor = getAuthorColor(node.commit.authorName);
+        col4AuthorStr = this.colorizer.color(node.commit.authorName, authorColor);
       } else if (node.type === 'dirty') {
         col4AuthorStr = this.colorizer.dim('Working Tree');
       } else if (node.type === 'stash') {
@@ -403,30 +443,44 @@ export class TerminalRenderer {
     const col4PaddedFirst = showAuthorCol ? padVisible(col4AuthorStr, col4Width) : '';
     const col4PaddedBlank = showAuthorCol ? ' '.repeat(col4Width) : '';
 
-    const rowLineCount = Math.max(descLines.length, dateText ? 2 : 1);
+    const hasCol2TwoLines = this.columns.showHash && this.columns.showDate && Boolean(dateText);
+    const rowLineCount = Math.max(descLines.length, hasCol2TwoLines ? 2 : 1, 1);
 
     // --- Build Multi-line Table Rows ---
     const resultLines: string[] = [];
     for (let k = 0; k < rowLineCount; k++) {
-      const c1 = k === 0 ? col1FirstLine : col1ContLine;
+      const rowParts: string[] = [];
 
-      let c2: string;
-      if (k === 0) {
-        c2 = padVisible(col2IdStr, col2Width);
-      } else if (k === 1 && col2DateStr) {
-        c2 = padVisible(col2DateStr, col2Width);
-      } else {
-        c2 = col2PaddedBlank;
+      // Col 1: Graph
+      if (this.columns.showGraph) {
+        const c1 = k === 0 ? col1FirstLine : col1ContLine;
+        rowParts.push(c1);
       }
 
-      const c3 = k < descLines.length ? padVisible(descLines[k], col3Width) : col3PaddedBlank;
+      // Col 2: Hash & Date
+      if (this.columns.showHash || this.columns.showDate) {
+        let c2: string;
+        if (!this.columns.showHash) {
+          c2 = k === 0 ? col2DateStr : '';
+        } else {
+          c2 = k === 0 ? col2IdStr : (k === 1 && col2DateStr ? col2DateStr : '');
+        }
+        rowParts.push(padVisible(c2, col2Width));
+      }
 
+      // Col 3: Title / Description
+      if (showCol3) {
+        const c3 = k < descLines.length ? padVisible(descLines[k], col3Width) : col3PaddedBlank;
+        rowParts.push(c3);
+      }
+
+      // Col 4: Author
       if (showAuthorCol) {
         const c4 = k === 0 ? col4PaddedFirst : col4PaddedBlank;
-        resultLines.push(`${c1}${gapStr}${c2}${gapStr}${c3}${gapStr}${c4}`.trimEnd());
-      } else {
-        resultLines.push(`${c1}${gapStr}${c2}${gapStr}${c3}`.trimEnd());
+        rowParts.push(c4);
       }
+
+      resultLines.push(rowParts.join(gapStr).trimEnd());
     }
 
     return resultLines;

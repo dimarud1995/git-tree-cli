@@ -73,7 +73,7 @@ export function buildGitLogArgs(options: TreeCliOptions): string[] {
     'log',
     '--topo-order',
     '--parents',
-    '--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%D%x00%s%x1e',
+    '--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%D%x00%s%x00%b%x1e',
   ];
 
   // Exclude internal plumbing refs
@@ -148,7 +148,7 @@ export async function fetchCommits(
     const fields = record.split(FIELD_SEP);
     if (fields.length < 7) continue;
 
-    const [hash, parentsStr, authorName, authorEmail, atStr, refStr, subject] = fields;
+    const [hash, parentsStr, authorName, authorEmail, atStr, refStr, subject, body] = fields;
     const parents = parentsStr ? parentsStr.trim().split(/\s+/).filter(Boolean) : [];
     const authorDate = parseInt(atStr, 10) || 0;
     const refs = parseRefs(refStr);
@@ -163,6 +163,7 @@ export async function fetchCommits(
       authorEmail: authorEmail || '',
       authorDate,
       subject: subject || '',
+      body: body ? body.trim() : undefined,
       refs,
       isMerge: parents.length > 1,
       isRoot: parents.length === 0,

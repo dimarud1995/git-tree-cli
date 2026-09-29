@@ -59,14 +59,21 @@ program
   .option('-s, --style <style>', 'Tree line style: curved, straight, ascii', 'curved')
   .option('--color <mode>', 'Color output mode: auto, always, never', 'auto')
   .option('-t, --theme <theme>', 'Color theme: tokyo, catppuccin, nord, mono', 'tokyo')
-  .option('--no-author', 'Hide author column')
-  .option('--no-date', 'Hide date column')
+  .option('--columns <cols>', 'Comma-separated list of columns to show: graph,hash,date,title,description,author')
+  .option('--skip-columns, --hide-columns <cols>', 'Comma-separated list of columns to skip/hide')
+  .option('--no-graph', 'Hide graph tree column')
+  .option('--hide-graph', 'Hide graph tree column')
   .option('--no-hash', 'Hide commit hash column')
-  .option('--hash-len <len>', 'Short commit hash length', (v) => parseInt(v, 10), 7)
-  .option('-w, --width <columns>', 'Target table width in characters (auto-detected in TTY, default: 120)', (v) => parseInt(v, 10))
+  .option('--hide-hash', 'Hide commit hash column')
+  .option('--no-date', 'Hide date under commit hash')
+  .option('--hide-date', 'Hide date under commit hash')
+  .option('--no-title', 'Hide commit title column')
+  .option('--hide-title', 'Hide commit title column')
+  .option('--no-author', 'Hide author column')
   .option('--hide-author', 'Hide author column')
-  .option('--hide-date', 'Hide date column')
-  .option('--hide-hash', 'Hide commit hash column');
+  .option('--description, --show-description, --body', 'Show commit message body description (default: false, only titles shown)')
+  .option('--hash-len <len>', 'Short commit hash length', (v) => parseInt(v, 10), 7)
+  .option('-w, --width <columns>', 'Target table width in characters (auto-detected in TTY, default: 120)', (v) => parseInt(v, 10));
 
 // Discovery helper for AI
 program.option('--explain-flags', 'Output machine-readable JSON schema of all flags for AI');
@@ -124,15 +131,20 @@ program.action(async (cliOpts) => {
           '--status / --no-status / --only-status': 'Control dirty worktree status',
         },
         presentation: {
+          '--columns <list>': 'Show only specified columns: graph,hash,date,title,description,author',
+          '--skip-columns, --hide-columns <list>': 'Skip specific columns (e.g. --skip-columns graph,author)',
+          '--no-graph, --hide-graph': 'Hide graph tree column',
+          '--no-hash, --hide-hash': 'Hide commit hash column',
+          '--no-date, --hide-date': 'Hide date under commit hash',
+          '--no-title, --hide-title': 'Hide commit title/message column',
+          '--no-author, --hide-author': 'Hide author column',
+          '--description, --body': 'Show commit message body description (default: false, only titles shown)',
           '--format <terminal|markdown|json>': 'Output format (use markdown for AI chat)',
           '--layout <compact|normal|expanded>': 'Density mode',
           '--date <relative|iso|short>': 'Timestamp format',
           '--style <curved|straight|ascii>': 'Line art style',
           '--theme <tokyo|catppuccin|nord|mono>': 'Color palette',
           '-w, --width <columns>': 'Target table width (auto-detected in TTY, default 120)',
-          '--hide-author, --no-author': 'Hide author column',
-          '--hide-date, --no-date': 'Hide date column',
-          '--hide-hash, --no-hash': 'Hide commit hash column',
         },
       },
     };
@@ -179,9 +191,18 @@ program.action(async (cliOpts) => {
     color: cliOpts.color as ColorMode,
     theme: cliOpts.theme as ColorTheme,
 
+    columns: cliOpts.columns
+      ? (cliOpts.columns as string).split(',').map((s) => s.trim()).filter(Boolean)
+      : undefined,
+    skipColumns: (cliOpts.skipColumns || cliOpts.hideColumns)
+      ? ((cliOpts.skipColumns || cliOpts.hideColumns) as string).split(',').map((s) => s.trim()).filter(Boolean)
+      : undefined,
+    showGraph: cliOpts.graph === false || cliOpts.hideGraph ? false : undefined,
+    showHash: cliOpts.hash === false || cliOpts.hideHash ? false : undefined,
+    showDate: cliOpts.date === false || cliOpts.hideDate ? false : undefined,
+    showTitle: cliOpts.title === false || cliOpts.hideTitle ? false : undefined,
     showAuthor: cliOpts.hideAuthor ? false : cliOpts.author !== false,
-    showDate: cliOpts.hideDate ? false : cliOpts.date !== false,
-    showHash: cliOpts.hideHash ? false : cliOpts.hash !== false,
+    showDescription: Boolean(cliOpts.description || cliOpts.showDescription || cliOpts.body),
     hashLen: cliOpts.hashLen || 7,
     width: typeof cliOpts.width === 'number' && !isNaN(cliOpts.width)
       ? cliOpts.width

@@ -19,6 +19,9 @@ When the user asks you questions about their Git repository, history, branches, 
 | "What changed in the working tree / status?" | `git-tree --only-status --format markdown` |
 | "Show commits by [author] this week" | `git-tree --author "[author]" --since "1 week ago" --format markdown` |
 | "Show branches `main` and `develop`" | `git-tree --branches main,develop --format markdown` |
+| "Show commits without graph tree (plain table)" | `git-tree --no-graph --format markdown` |
+| "Show only commit titles and authors" | `git-tree --columns title,author --format markdown` |
+| "Show commits with full body descriptions" | `git-tree --description -10 --format markdown` |
 | "Compact summary of last 20 commits" | `git-tree -20 --layout compact --format markdown` |
 | "Detailed view of recent commits" | `git-tree -10 --layout expanded --format markdown` |
 
@@ -67,7 +70,12 @@ When the user asks you questions about their Git repository, history, branches, 
 - `-s, --style <curved|straight|ascii>`: Line drawing style (default: `curved`).
 - `-t, --theme <tokyo|catppuccin|nord|mono>`: Color theme for terminal output.
 - `-w, --width <columns>`: Target table width (auto-detected in TTY, default: 120).
-- `--hide-author` / `--no-author`: Omit author column.
-- `--hide-date` / `--no-date`: Omit date under commit hash.
-- `--hide-hash` / `--no-hash`: Omit commit hash column.
+- `--columns <list>`: Explicit whitelist of columns to show: `graph,hash,date,title,description,author`.
+- `--skip-columns <list>`: Blacklist of columns to skip (e.g. `--skip-columns graph,date`).
+- `--no-graph` / `--hide-graph`: Omit graph tree column.
+- `--no-title` / `--hide-title`: Omit commit title column.
+- `--no-author` / `--hide-author`: Omit author column.
+- `--no-date` / `--hide-date`: Omit date under commit hash.
+- `--no-hash` / `--hide-hash`: Omit commit hash column.
+- `--description` / `--body`: Show commit message body description (default: false, only titles shown).
 - `--explain-flags`: Outputs machine-readable JSON schema of all flags.

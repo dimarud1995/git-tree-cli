@@ -162,10 +162,16 @@ git-tree --format markdown     # Fenced code block (ideal for AI chat responses)
 git-tree --format json         # Structured JSON graph for machine processing
 
 # Column toggles & Width
-git-tree -w 140                # Target table width in characters (auto-detected in TTY, default 120)
-git-tree --hide-author         # Hide author column (or --no-author)
-git-tree --hide-date           # Hide date under hash (or --no-date)
-git-tree --hide-hash           # Hide commit hash (or --no-hash)
+git-tree -w 140                           # Target table width in characters (auto-detected in TTY, default 120)
+git-tree --columns title,author           # Dedicated whitelist: show only specified columns
+git-tree --columns tree,hash,title        # Show graph, hash, and title (skip date and author)
+git-tree --skip-columns graph,date        # Dedicated blacklist: skip specified columns
+git-tree --no-graph                       # Hide graph tree column (clean borderless table)
+git-tree --no-author                      # Hide author column (or --hide-author)
+git-tree --no-date                        # Hide date under hash (or --hide-date)
+git-tree --no-hash                        # Hide commit hash (or --hide-hash)
+git-tree --no-title                       # Hide commit title (or --hide-title)
+git-tree --description                    # Include commit message body description (off by default, only titles on)
 
 # Themes & Line Styles
 git-tree --theme tokyo         # Tokyo Night palette (default)
@@ -177,7 +183,10 @@ git-tree --style straight      # Sharp corners (┌─ └─)
 git-tree --style ascii         # Pure ASCII (| / \ *)
 ```
 
-### 5. AI Discovery
+### 5. Smart Perceptual Author Color Engine
+Every author is automatically assigned a unique, deterministic 24-bit TrueColor hex color using a fast FNV-1a hash with bit avalanche mixing. The colors are dynamically calibrated against WCAG relative luminance ($Y \approx 0.22 \pm 0.02$) to mathematically guarantee high contrast and effortless readability on **both dark and light terminal backgrounds** ($\ge 5.0:1$ contrast against black, $\ge 3.8:1$ against white). All of this happens under the hood with 0 configuration.
+
+### 6. AI Discovery
 ```bash
 git-tree --explain-flags       # Machine-readable JSON schema of all capabilities
 ```
