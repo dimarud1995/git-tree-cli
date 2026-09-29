@@ -210,3 +210,5 @@ npm run build
 ## License
 
 MIT © Dmytro Rud
+
+<!-- theme note: Tokyo Night is enabled by default -->
