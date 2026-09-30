@@ -82,3 +82,61 @@ export async function installSkill(target: SkillTarget = 'auto'): Promise<string
 
   return installedPaths;
 }
+
+/**
+ * Checks whether git-tree is in the system PATH and optionally links to ~/.local/bin
+ */
+export async function ensurePath(): Promise<{ onPath: boolean; message?: string }> {
+  const home = os.homedir();
+  const pathEnv = process.env.PATH || '';
+  const paths = pathEnv.split(path.delimiter);
+
+  const localBin = path.join(home, '.local', 'bin');
+  const localBinInPath = paths.includes(localBin);
+
+  // Check if git-tree binary can be found in PATH
+  let foundInPath = false;
+  for (const p of paths) {
+    try {
+      const candidate = path.join(p, 'git-tree');
+      await fs.access(candidate);
+      foundInPath = true;
+      break;
+    } catch {
+      // continue search
+    }
+  }
+
+  if (foundInPath) {
+    return { onPath: true };
+  }
+
+  // If not found in PATH, attempt to symlink executable to ~/.local/bin
+  try {
+    const currentScript = process.argv[1];
+    if (currentScript) {
+      await fs.mkdir(localBin, { recursive: true });
+      const targetSymlink = path.join(localBin, 'git-tree');
+      try {
+        await fs.unlink(targetSymlink);
+      } catch {
+        // ignore if not existing
+      }
+      await fs.symlink(currentScript, targetSymlink);
+      return {
+        onPath: localBinInPath,
+        message: localBinInPath
+          ? `Created symlink in ${targetSymlink} (which is in your PATH).`
+          : `Created symlink in ${targetSymlink}. Add ${localBin} to your PATH.`,
+      };
+    }
+  } catch {
+    // Ignore error
+  }
+
+  return {
+    onPath: false,
+    message: 'git-tree is not currently in your PATH. Add $(npm config get prefix)/bin to PATH in ~/.zshrc or ~/.bashrc.',
+  };
+}
+

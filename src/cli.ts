@@ -11,7 +11,7 @@ import {
   OutputFormat,
   TreeCliOptions,
 } from './git/types.js';
-import { installSkill, SkillTarget } from './installer/skill-installer.js';
+import { installSkill, ensurePath, SkillTarget } from './installer/skill-installer.js';
 
 const program = new Command();
 
@@ -108,6 +108,11 @@ program
         }
       } else {
         console.warn('! No matching AI configuration directories found to install skill.');
+      }
+
+      const pathStatus = await ensurePath();
+      if (pathStatus.message) {
+        console.log(`ℹ PATH: ${pathStatus.message}`);
       }
     } catch (err: unknown) {
       console.error('Failed to install skill:', err instanceof Error ? err.message : err);

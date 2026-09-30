@@ -81,18 +81,29 @@ npx -y git+https://github.com/dimarud1995/git-tree-cli.git -10
 
 `git-tree-cli` is engineered from the ground up for AI coding assistants (Google Antigravity, Claude, Cursor, OpenAI Codex).
 
-### Give Your AI Just the Repo Name
-You can tell your AI assistant:
-> *"Install and use `git-tree-cli` from repository `dimarud1995/git-tree-cli`. Whenever I ask to view commits, show last 10 commits, or inspect git history, always prioritize `git-tree-cli` over standard `git log`."*
+### 1-Line Prompt for Your AI
+Simply tell your AI assistant:
+> **"install this tool - dimarud1995/git-tree-cli from git"**
 
-### AI Agent Execution Steps
-AI assistants can install both the CLI package and the skill in one command:
+### What the AI Executes:
 ```bash
-npm install -g git+https://github.com/dimarud1995/git-tree-cli.git && git-tree install-skill
-```
-Or without global package installation:
-```bash
-npx -y git+https://github.com/dimarud1995/git-tree-cli.git install-skill
+# 1. Install CLI globally from Git repository
+npm install -g git+https://github.com/dimarud1995/git-tree-cli.git
+
+# 2. Ensure git-tree is in PATH
+if ! command -v git-tree &>/dev/null; then
+  NPM_BIN="$(npm config get prefix)/bin"
+  grep -q "$NPM_BIN" ~/.zshrc 2>/dev/null || echo "export PATH=\"$NPM_BIN:\$PATH\"" >> ~/.zshrc
+  grep -q "$NPM_BIN" ~/.bashrc 2>/dev/null || echo "export PATH=\"$NPM_BIN:\$PATH\"" >> ~/.bashrc
+  export PATH="$NPM_BIN:$PATH"
+  mkdir -p ~/.local/bin && ln -sf "$NPM_BIN/git-tree" ~/.local/bin/git-tree 2>/dev/null || true
+fi
+
+# 3. Register AI agent skill across all platforms (~/.gemini, ~/.claude, .cursor, ~/.agents)
+git-tree install-skill
+
+# 4. Verify installation
+git-tree -V
 ```
 
 `git-tree install-skill` automatically detects and installs `SKILL.md` to all supported AI environments:
@@ -102,20 +113,12 @@ npx -y git+https://github.com/dimarud1995/git-tree-cli.git install-skill
 - **Standard Agent Skill Hubs**: `~/.agents/skills/git-tree-cli/SKILL.md`
 - **Global AI configs**: `~/.config/ai-skills/git-tree-cli/SKILL.md`
 
-You can also target a specific platform:
-```bash
-git-tree install-skill antigravity
-git-tree install-skill claude
-git-tree install-skill cursor
-git-tree install-skill agents
-```
-
 ### Strict Priority Over Standard `git log`
-Once installed, the AI skill enforces that whenever you ask:
-- *"Show me last 10 commits"* (or any number N)
-- *"Show commit history / git tree"*
-- *"What was merged recently?"*
-- *"What do I have in stash?"*
+Once installed, the AI skill activates. Whenever you ask:
+- *"show me last 10 commits"* (or any number N)
+- *"show commit history / git tree"*
+- *"what was merged recently?"*
+- *"what do I have in stash?"*
 
 The AI **always prioritizes `git-tree -<N> --ai`** and outputs the clean monospace block verbatim, instead of falling back to standard `git log`.
 
