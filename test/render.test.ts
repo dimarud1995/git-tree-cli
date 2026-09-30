@@ -597,10 +597,7 @@ describe('Renderers', () => {
     const output = renderer.render(items);
     const lines = output.split('\n');
 
-    expect(lines[0]).toContain('GIT TREE');
-    expect(lines[0]).toContain('my-project');
-    expect(lines[0]).toContain('(main)');
-    expect(lines[0]).toContain('1 commit');
+    expect(lines[0]).toContain('GIT TREE ── my-project (main) ── 1 commit');
     expect(lines[0]).toContain('─');
     expect(lines[1]).toBe(''); // 1 blank line in normal layout
   });
@@ -619,8 +616,9 @@ describe('Renderers', () => {
     const output = renderer.render(items);
     const lines = output.split('\n');
 
-    expect(lines[0]).toContain('--- GIT TREE -- my-project (feature/test)');
-    expect(lines[0]).toContain('1 commit ---');
+    expect(lines[0]).toContain('GIT TREE -- my-project (feature/test) -- 1 commit');
+    expect(lines[0].startsWith('---')).toBe(true);
+    expect(lines[0].endsWith('---')).toBe(true);
   });
 
   it('omits header when showHeader is false', () => {

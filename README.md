@@ -25,7 +25,7 @@ Standard `git log --graph` produces narrow, hard-to-read ASCII text with minimal
 ## Visual Example
 
 ```text
-─── GIT TREE ── payment-service (feature/payments) ────────────────────────────── 4 commits ───
+─────────────── GIT TREE ── payment-service (feature/payments) ── 4 commits ───────────────
 
 ○       [DIRTY]    Working tree dirty (+2 staged, 1 unstaged)
 │

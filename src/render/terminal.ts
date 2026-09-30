@@ -654,7 +654,7 @@ export class TerminalRenderer {
   }
 
   /**
-   * Renders the top-level repository header rule
+   * Renders the top-level repository header rule with centered content
    */
   public renderHeader(items: GraphRenderItem[], tableWidth: number): string {
     const ruleChar = this.symbols.hLine || '─';
@@ -670,48 +670,75 @@ export class TerminalRenderer {
     const countUnit = commitCount > 0 ? (count === 1 ? 'commit' : 'commits') : (count === 1 ? 'item' : 'items');
     const countStr = `${count} ${countUnit}`;
 
-    // Components unstyled for width calculation
-    const leftUncolored = `${ruleChar.repeat(3)} GIT TREE${repoName ? ` ${ruleChar.repeat(2)} ${repoName}${headBranch ? ` (${headBranch})` : ''}` : ''}`;
-    const rightUncolored = `${countStr} ${ruleChar.repeat(3)}`;
+    // Styled text segments
+    const titleStyled = this.colorizer.bold(this.colorizer.color('GIT TREE', this.colorizer.theme.head));
+    const sepStyled = ' ' + this.colorizer.dim(ruleChar.repeat(2)) + ' ';
+    const sepUnstyled = ` ${ruleChar.repeat(2)} `;
 
-    const leftLen = visibleWidth(leftUncolored);
-    const rightLen = visibleWidth(rightUncolored);
-
-    // Styled components
-    const prefix = this.colorizer.dim(ruleChar.repeat(3)) + ' ';
-    const title = this.colorizer.bold(this.colorizer.color('GIT TREE', this.colorizer.theme.head));
-
-    let projectInfo = '';
+    let projectInfoStyled = '';
+    let projectInfoUnstyled = '';
     if (repoName) {
-      projectInfo += ' ' + this.colorizer.dim(ruleChar.repeat(2)) + ' ' + this.colorizer.bold(this.colorizer.color(repoName, this.colorizer.theme.branch));
+      projectInfoStyled = this.colorizer.bold(this.colorizer.color(repoName, this.colorizer.theme.branch));
+      projectInfoUnstyled = repoName;
       if (headBranch) {
-        projectInfo += ' ' + this.colorizer.color(`(${headBranch})`, this.colorizer.theme.head);
+        projectInfoStyled += ' ' + this.colorizer.color(`(${headBranch})`, this.colorizer.theme.head);
+        projectInfoUnstyled += ` (${headBranch})`;
       }
     }
 
-    const styledLeft = prefix + title + projectInfo;
-    const styledRight = this.colorizer.color(countStr, this.colorizer.theme.date) + ' ' + this.colorizer.dim(ruleChar.repeat(3));
+    const countStyled = this.colorizer.color(countStr, this.colorizer.theme.date);
 
-    // Wide display: include right count
-    if (tableWidth - leftLen - rightLen - 2 >= 2) {
-      const middleLen = tableWidth - leftLen - rightLen - 2;
-      const middleRule = ' ' + this.colorizer.dim(ruleChar.repeat(middleLen)) + ' ';
-      return styledLeft + middleRule + styledRight;
+    // Tier 1: Full centered text (GIT TREE ── repo (branch) ── N commits)
+    const fullSegmentsStyled = [titleStyled];
+    const fullSegmentsUnstyled = ['GIT TREE'];
+    if (projectInfoStyled) {
+      fullSegmentsStyled.push(projectInfoStyled);
+      fullSegmentsUnstyled.push(projectInfoUnstyled);
+    }
+    fullSegmentsStyled.push(countStyled);
+    fullSegmentsUnstyled.push(countStr);
+
+    const fullUnstyledText = fullSegmentsUnstyled.join(sepUnstyled);
+    const fullVisibleLen = visibleWidth(fullUnstyledText);
+
+    if (tableWidth - fullVisibleLen - 2 >= 4) {
+      const totalDashes = tableWidth - fullVisibleLen - 2;
+      const leftDashes = Math.floor(totalDashes / 2);
+      const rightDashes = totalDashes - leftDashes;
+      const leftRule = this.colorizer.dim(ruleChar.repeat(leftDashes)) + ' ';
+      const rightRule = ' ' + this.colorizer.dim(ruleChar.repeat(rightDashes));
+      return leftRule + fullSegmentsStyled.join(sepStyled) + rightRule;
     }
 
-    // Medium display: drop right count and fill remaining space
-    const avail = tableWidth - leftLen - 1;
-    if (avail >= 3) {
-      return styledLeft + ' ' + this.colorizer.dim(ruleChar.repeat(avail));
+    // Tier 2: Medium display (drop commit count: GIT TREE ── repo (branch))
+    if (projectInfoStyled) {
+      const medSegmentsStyled = [titleStyled, projectInfoStyled];
+      const medSegmentsUnstyled = ['GIT TREE', projectInfoUnstyled];
+      const medUnstyledText = medSegmentsUnstyled.join(sepUnstyled);
+      const medVisibleLen = visibleWidth(medUnstyledText);
+
+      if (tableWidth - medVisibleLen - 2 >= 4) {
+        const totalDashes = tableWidth - medVisibleLen - 2;
+        const leftDashes = Math.floor(totalDashes / 2);
+        const rightDashes = totalDashes - leftDashes;
+        const leftRule = this.colorizer.dim(ruleChar.repeat(leftDashes)) + ' ';
+        const rightRule = ' ' + this.colorizer.dim(ruleChar.repeat(rightDashes));
+        return leftRule + medSegmentsStyled.join(sepStyled) + rightRule;
+      }
     }
 
-    // Narrow display fallback
-    const fallback = prefix + title;
-    const fallbackLen = visibleWidth(`${ruleChar.repeat(3)} GIT TREE`);
-    if (tableWidth > fallbackLen + 1) {
-      return fallback + ' ' + this.colorizer.dim(ruleChar.repeat(tableWidth - fallbackLen - 1));
+    // Tier 3: Compact / narrow display (GIT TREE only)
+    const minVisibleLen = visibleWidth('GIT TREE');
+    if (tableWidth - minVisibleLen - 2 >= 2) {
+      const totalDashes = tableWidth - minVisibleLen - 2;
+      const leftDashes = Math.floor(totalDashes / 2);
+      const rightDashes = totalDashes - leftDashes;
+      const leftRule = this.colorizer.dim(ruleChar.repeat(leftDashes)) + ' ';
+      const rightRule = ' ' + this.colorizer.dim(ruleChar.repeat(rightDashes));
+      return leftRule + titleStyled + rightRule;
     }
-    return fallback;
+
+    return titleStyled;
   }
 }
 
