@@ -161,4 +161,43 @@ describe('CLI Integration', () => {
     ]);
     expect(stdout).toContain('custom-project-name');
   });
+
+  it('supports --ai, automatically defaulting to markdown with <ai_context>', async () => {
+    const { stdout } = await execFileAsync('node', [binPath, '-1', '--ai']);
+    expect(stdout).toContain('<ai_context>');
+    expect(stdout).toContain('[UI_RENDERING_DIRECTIVES]');
+    expect(stdout).toContain('```text');
+    expect(stdout).toContain('git-tree-cli');
+    expect(stdout).toContain('</ai_context>');
+  });
+
+  it('supports --extra-details-for-ai and --ai-hints aliases', async () => {
+    const { stdout: extraOut } = await execFileAsync('node', [
+      binPath,
+      '-1',
+      '--extra-details-for-ai',
+    ]);
+    expect(extraOut).toContain('<ai_context>');
+
+    const { stdout: hintsOut } = await execFileAsync('node', [
+      binPath,
+      '-1',
+      '--ai-hints',
+    ]);
+    expect(hintsOut).toContain('<ai_context>');
+  });
+
+  it('supports --ai with --format json attaching aiContext object', async () => {
+    const { stdout } = await execFileAsync('node', [
+      binPath,
+      '-1',
+      '--ai',
+      '--format',
+      'json',
+    ]);
+    const data = JSON.parse(stdout);
+    expect(data.aiContext).toBeDefined();
+    expect(data.aiContext.dimensions.width).toBeGreaterThan(0);
+    expect(data.aiContext.directives.lineWrap).toBe(false);
+  });
 });

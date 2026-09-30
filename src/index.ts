@@ -63,12 +63,17 @@ export async function generateGitTree(options: TreeCliOptions): Promise<string> 
 
   // Render according to requested format
   if (resolvedOptions.format === 'json') {
-    return renderJson(items);
+    return renderJson(items, resolvedOptions);
   }
   if (resolvedOptions.format === 'markdown') {
     return renderMarkdown(items, resolvedOptions);
   }
 
   const renderer = new TerminalRenderer(resolvedOptions);
-  return renderer.render(items);
+  const terminalText = renderer.render(items);
+  if (resolvedOptions.ai) {
+    const { formatAiContextEnvelope } = await import('./utils/ai-context.js');
+    return `${formatAiContextEnvelope(items, terminalText, resolvedOptions)}\n\n${terminalText}`;
+  }
+  return terminalText;
 }

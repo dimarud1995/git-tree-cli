@@ -1,6 +1,7 @@
 import { TreeCliOptions } from '../git/types.js';
 import { GraphRenderItem } from '../graph/router.js';
 import { TerminalRenderer } from './terminal.js';
+import { formatAiContextEnvelope } from '../utils/ai-context.js';
 
 /**
  * Renders the graph in a markdown-compatible format, stripping ANSI color codes
@@ -19,11 +20,17 @@ export function renderMarkdown(
   const renderer = new TerminalRenderer(plainOptions);
   const treeText = renderer.render(items);
 
-  const lines: string[] = [
-    '```text',
-    treeText || '(No commits to display)',
-    '```',
-  ];
+  const lines: string[] = [];
+
+  // If AI mode is enabled, prepend the structured AI rendering directive envelope
+  if (options.ai) {
+    lines.push(formatAiContextEnvelope(items, treeText, options));
+    lines.push('');
+  }
+
+  lines.push('```text');
+  lines.push(treeText || '(No commits to display)');
+  lines.push('```');
 
   return lines.join('\n');
 }

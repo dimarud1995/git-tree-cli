@@ -654,6 +654,49 @@ describe('Renderers', () => {
     // In compact mode, line 1 is the commit directly (no blank line)
     expect(lines[1]).toContain('a1b2c3d');
   });
+
+  it('prepends <ai_context> directive envelope in renderMarkdown when ai is true', () => {
+    const aiOpts: TreeCliOptions = {
+      ...options,
+      status: 'exclude',
+      ai: true,
+      repoName: 'ai-repo',
+      headBranch: 'main',
+    };
+    const nodes = buildGraphNodes(commits, cleanStatus, [], aiOpts);
+    const items = routeGraph(nodes);
+    const output = renderMarkdown(items, aiOpts);
+
+    expect(output).toContain('<ai_context>');
+    expect(output).toContain('[UI_RENDERING_DIRECTIVES]');
+    expect(output).toContain('columns ×');
+    expect(output).toContain('rows');
+    expect(output).toContain('line_wrap: false');
+    expect(output).toContain('[REPOSITORY_CONTEXT]');
+    expect(output).toContain('ai-repo');
+    expect(output).toContain('</ai_context>');
+    expect(output).toContain('```text');
+  });
+
+  it('includes aiContext in renderJson when ai is true', () => {
+    const aiJsonOpts: TreeCliOptions = {
+      ...options,
+      status: 'exclude',
+      ai: true,
+      repoName: 'json-ai-repo',
+      headBranch: 'main',
+    };
+    const nodes = buildGraphNodes(commits, cleanStatus, [], aiJsonOpts);
+    const items = routeGraph(nodes);
+    const jsonStr = renderJson(items, aiJsonOpts);
+    const data = JSON.parse(jsonStr);
+
+    expect(data.aiContext).toBeDefined();
+    expect(data.aiContext.dimensions.width).toBeGreaterThan(0);
+    expect(data.aiContext.dimensions.rows).toBeGreaterThan(0);
+    expect(data.aiContext.directives.lineWrap).toBe(false);
+    expect(data.aiContext.repository.name).toBe('json-ai-repo');
+  });
 });
 
 

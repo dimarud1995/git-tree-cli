@@ -208,8 +208,9 @@ Non-regular commits display high-visibility badges in the title column to instan
 ### 6. Smart Perceptual Author Color Engine
 Every author is automatically assigned a unique, deterministic 24-bit TrueColor hex color using a fast FNV-1a hash with bit avalanche mixing. The colors are dynamically calibrated against WCAG relative luminance ($Y \approx 0.22 \pm 0.02$) to mathematically guarantee high contrast and effortless readability on **both dark and light terminal backgrounds** ($\ge 5.0:1$ contrast against black, $\ge 3.8:1$ against white). All of this happens under the hood with 0 configuration.
 
-### 7. AI Discovery
+### 7. AI Directives & Discovery
 ```bash
+git-tree --ai                  # AI-first output: attaches <ai_context> envelope with exact character dimensions, rows, strict zero-wrap directives, and repository state (aliases: --extra-details-for-ai, --ai-hints, --ai-format)
 git-tree --explain-flags       # Machine-readable JSON schema of all capabilities
 ```
 

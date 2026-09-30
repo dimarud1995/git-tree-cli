@@ -1,4 +1,7 @@
 import { GraphRenderItem } from '../graph/router.js';
+import { TreeCliOptions } from '../git/types.js';
+import { computeAiContext, AiContextData } from '../utils/ai-context.js';
+import { TerminalRenderer } from './terminal.js';
 
 export interface JsonGraphNode {
   id: string;
@@ -33,9 +36,10 @@ export interface JsonGraphOutput {
   version: string;
   totalNodes: number;
   nodes: JsonGraphNode[];
+  aiContext?: AiContextData;
 }
 
-export function renderJson(items: GraphRenderItem[]): string {
+export function renderJson(items: GraphRenderItem[], options?: TreeCliOptions): string {
   const nodes: JsonGraphNode[] = [];
 
   for (const item of items) {
@@ -84,6 +88,13 @@ export function renderJson(items: GraphRenderItem[]): string {
     totalNodes: nodes.length,
     nodes,
   };
+
+  if (options?.ai) {
+    const plainOptions: TreeCliOptions = { ...options, color: 'never' };
+    const renderer = new TerminalRenderer(plainOptions);
+    const treeText = renderer.render(items);
+    output.aiContext = computeAiContext(items, treeText, options);
+  }
 
   return JSON.stringify(output, null, 2);
 }

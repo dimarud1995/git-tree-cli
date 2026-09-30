@@ -78,6 +78,10 @@ program
   .option('--no-header', 'Hide repository header')
   .option('--hide-header', 'Hide repository header')
   .option('--repo-name <name>', 'Override repository display name in header')
+  .option('--ai', 'Include AI UI rendering directives, dimensions, and repository metadata envelope')
+  .option('--extra-details-for-ai', 'Alias for --ai')
+  .option('--ai-hints', 'Alias for --ai')
+  .option('--ai-format', 'Alias for --ai')
   .option('--description, --show-description, --body', 'Show commit message body description (default: false, only titles shown)')
   .option('--hash-len <len>', 'Short commit hash length', (v) => parseInt(v, 10), 7)
   .option('-w, --width <columns>', 'Target table width in characters (auto-detected in TTY, default: 120)', (v) => parseInt(v, 10));
@@ -150,6 +154,7 @@ program.action(async (cliOpts) => {
           '--no-author, --hide-author': 'Hide author column',
           '--header / --no-header / --hide-header': 'Show/hide repository header banner with repo name, branch, and commit count',
           '--repo-name <name>': 'Override repository display name in header',
+          '--ai, --extra-details-for-ai, --ai-hints': 'Include AI UI rendering directives, dimensions, and repository metadata envelope',
           '--description, --body': 'Show commit message body description (default: false, only titles shown)',
           '--format <terminal|markdown|json>': 'Output format (use markdown for AI chat)',
           '--layout <compact|normal|expanded>': 'Density mode',
@@ -179,6 +184,10 @@ program.action(async (cliOpts) => {
     ? (cliOpts.branches as string).split(',').map((s) => s.trim()).filter(Boolean)
     : undefined;
 
+  const isAi = Boolean(cliOpts.ai || cliOpts.extraDetailsForAi || cliOpts.aiHints || cliOpts.aiFormat);
+  const formatPassed = userArgs.some((a) => a === '-f' || a === '--format' || a.startsWith('--format='));
+  const resolvedFormat = !formatPassed && isAi ? 'markdown' : (cliOpts.format as OutputFormat);
+
   const options: TreeCliOptions = {
     all: cliOpts.all,
     current: cliOpts.current,
@@ -199,7 +208,7 @@ program.action(async (cliOpts) => {
 
     lines: cliOpts.fullLines ? 'full' : (cliOpts.lines as LinesMode) || 'portal',
     layout: cliOpts.layout as LayoutMode,
-    format: cliOpts.format as OutputFormat,
+    format: resolvedFormat,
     date: cliOpts.date as DateStyle,
     style: cliOpts.style as LineStyle,
     color: cliOpts.color as ColorMode,
@@ -218,6 +227,7 @@ program.action(async (cliOpts) => {
     showAuthor: cliOpts.hideAuthor ? false : cliOpts.author !== false,
     showHeader: cliOpts.header === false || cliOpts.hideHeader ? false : true,
     repoName: typeof cliOpts.repoName === 'string' ? cliOpts.repoName : undefined,
+    ai: isAi,
     showDescription: Boolean(cliOpts.description || cliOpts.showDescription || cliOpts.body),
     hashLen: cliOpts.hashLen || 7,
     width: typeof cliOpts.width === 'number' && !isNaN(cliOpts.width)

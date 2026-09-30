@@ -11,23 +11,23 @@ When the user asks you questions about their Git repository, history, branches, 
 
 | User Query | Recommended Command |
 | :--- | :--- |
-| "Show me git tree / history" | `git-tree --format markdown` |
-| "Show last 10 / 50 / 100 commits" | `git-tree -10 --format markdown` (or `-50`, `-100`) |
-| "Show only my current branch commits" | `git-tree --current --format markdown` |
-| "What was merged recently?" | `git-tree --only-merges -15 --format markdown` |
-| "What do I have in my stash?" | `git-tree --only-stashes --format markdown` |
-| "What changed in the working tree / status?" | `git-tree --only-status --format markdown` |
-| "Show commits by [author] this week" | `git-tree --author "[author]" --since "1 week ago" --format markdown` |
-| "Show commits by email" | `git-tree --email "[email]" -100 --format markdown` |
-| "Show commits by multiple emails" | `git-tree --email "[email1],[email2]" -100 --format markdown` |
-| "Show branches `main` and `develop`" | `git-tree --branches main,develop --format markdown` |
-| "Show commits without graph tree (plain table)" | `git-tree --no-graph --format markdown` |
-| "Show only commit titles and authors" | `git-tree --columns title,author --format markdown` |
-| "Show commits with full body descriptions" | `git-tree --description -10 --format markdown` |
-| "Compact summary of last 20 commits" | `git-tree -20 --layout compact --format markdown` |
-| "Detailed view of recent commits" | `git-tree -10 --layout expanded --format markdown` |
+| "Show me git tree / history" | `git-tree --ai` |
+| "Show last 10 / 50 / 100 commits" | `git-tree -10 --ai` (or `-50`, `-100`) |
+| "Show only my current branch commits" | `git-tree --current --ai` |
+| "What was merged recently?" | `git-tree --only-merges -15 --ai` |
+| "What do I have in my stash?" | `git-tree --only-stashes --ai` |
+| "What changed in the working tree / status?" | `git-tree --only-status --ai` |
+| "Show commits by [author] this week" | `git-tree --author "[author]" --since "1 week ago" --ai` |
+| "Show commits by email" | `git-tree --email "[email]" -100 --ai` |
+| "Show commits by multiple emails" | `git-tree --email "[email1],[email2]" -100 --ai` |
+| "Show branches `main` and `develop`" | `git-tree --branches main,develop --ai` |
+| "Show commits without graph tree (plain table)" | `git-tree --no-graph --ai` |
+| "Show only commit titles and authors" | `git-tree --columns title,author --ai` |
+| "Show commits with full body descriptions" | `git-tree --description -10 --ai` |
+| "Compact summary of last 20 commits" | `git-tree -20 --layout compact --ai` |
+| "Detailed view of recent commits" | `git-tree -10 --layout expanded --ai` |
 
-> **IMPORTANT FOR AI AGENTS**: When rendering output into a chat response or markdown document, ALWAYS pass `--format markdown`. This strips raw terminal ANSI color escape sequences and wraps the tree in a cleanly formatted fenced code block. The output uses a clean 4-column layout (Graph, Hash + Relative Date, Description + Ref Badges, Author). When running directly in an interactive terminal for the user, use the default `--format terminal`.
+> **IMPORTANT FOR AI AGENTS**: When fetching history for a user, ALWAYS pass `--ai` (or `--format markdown`). Passing `--ai` automatically sets markdown mode, wraps the tree in a clean ```` ```text ```` code block, and prepends `<ai_context>` containing exact table character widths, row counts, and strict zero-wrap directives. Always present the enclosed monospace code block **VERBATIM** to the user without altering characters, summarizing, or reformatting into markdown tables. When running directly in an interactive terminal for the user, use the default `--format terminal`.
 
 ---
 
@@ -91,5 +91,6 @@ When the user asks you questions about their Git repository, history, branches, 
 - `--no-hash` / `--hide-hash`: Omit commit hash column.
 - `--no-header` / `--hide-header`: Omit top repository header banner rule (shows repo name, branch, and commit count by default).
 - `--repo-name <name>`: Override repository display title in header.
+- `--ai`: AI-first output mode. Prepends `<ai_context>` envelope with exact table dimensions, monospace code block guidelines, strict zero-wrap directives, and repository state (aliases: `--extra-details-for-ai`, `--ai-hints`, `--ai-format`). Automatically defaults to markdown format.
 - `--description` / `--body`: Show commit message body description (default: false, only titles shown).
 - `--explain-flags`: Outputs machine-readable JSON schema of all flags.
