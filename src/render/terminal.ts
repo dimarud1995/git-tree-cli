@@ -473,7 +473,7 @@ export class TerminalRenderer {
             (r) => r.type === 'head' || r.type === 'branch' || r.type === 'remote'
           );
           if (!hasBranchRef && row.branch) {
-            const branchLabel = `(${row.branch})`;
+            const branchLabel = row.branch;
             firstLineParts.unshift(this.colorizer.color(branchLabel, this.colorizer.theme.remote));
           }
 
@@ -497,7 +497,7 @@ export class TerminalRenderer {
             // Normal & Expanded layouts:
             // Line 1: Branch name(s) & badges
             if (firstLineParts.length > 0) {
-              descLines.push(...wrapText(firstLineParts.join(' '), col3Width));
+              descLines.push(...wrapText(firstLineParts.join('  '), col3Width));
             }
             // Line 2: Commit title (subject) below the branch name
             descLines.push(...wrapText(subjectStyled, col3Width));
@@ -648,7 +648,7 @@ export class TerminalRenderer {
       if (ref.type === 'head') {
         const text = ref.name === 'HEAD' ? 'HEAD' : `HEAD\u00A0->\u00A0${ref.name}`;
         badges.push(
-          this.colorizer.color(this.colorizer.bold(`(${text})`), this.colorizer.theme.head)
+          this.colorizer.color(this.colorizer.bold(text), this.colorizer.theme.head)
         );
       } else if (ref.type === 'tag') {
         const text = `${this.symbols.tag}\u00A0${ref.name}`;
@@ -657,15 +657,15 @@ export class TerminalRenderer {
         );
       } else if (ref.type === 'remote') {
         const text = `${this.symbols.remote}\u00A0${ref.name}`;
-        badges.push(this.colorizer.color(`(${text})`, this.colorizer.theme.remote));
+        badges.push(this.colorizer.color(text, this.colorizer.theme.remote));
       } else {
         badges.push(
-          this.colorizer.color(this.colorizer.bold(`(${ref.name})`), this.colorizer.theme.branch)
+          this.colorizer.color(this.colorizer.bold(ref.name), this.colorizer.theme.branch)
         );
       }
     }
 
-    return badges.join(' ');
+    return badges.join('  ');
   }
 
   private charsToString(

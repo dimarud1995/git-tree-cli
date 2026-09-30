@@ -69,7 +69,7 @@ describe('Renderers', () => {
     expect(output).toContain('[DIRTY]');
     expect(output).toContain('◉'); // HEAD symbol
     expect(output).toContain('a1b2c3d');
-    expect(output).toContain('(HEAD -> main)');
+    expect(output).toContain('HEAD -> main');
     expect(output).toContain('[⚑ v1.0.0]');
     expect(output).toContain('Initial commit');
     expect(output).toContain('Developer');
@@ -311,13 +311,13 @@ describe('Renderers', () => {
     const output = renderer.render(items);
     const lines = output.split('\n');
 
-    // (▹ must NOT be on a line by itself!
+    // ▹ must NOT be on a line by itself!
     for (const line of lines) {
-      expect(line.trim()).not.toBe('(▹');
+      expect(line.trim()).not.toBe('▹');
     }
 
     // A line should contain the start of the branch name alongside the badge icon
-    const branchLine = lines.find((l) => l.includes('(▹ origin/'));
+    const branchLine = lines.find((l) => l.includes('▹ origin/'));
     expect(branchLine).toBeDefined();
   });
 
