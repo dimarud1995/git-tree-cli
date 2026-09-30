@@ -61,7 +61,7 @@ describe('Git Parser', () => {
     it('builds default all branches args', () => {
       const args = buildGitLogArgs(defaultOptions);
       expect(args).toContain('--all');
-      expect(args).toContain('--topo-order');
+      expect(args).toContain('--date-order');
     });
 
     it('respects current branch scope', () => {

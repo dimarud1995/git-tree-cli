@@ -71,7 +71,7 @@ export function parseRefs(refStr: string): GitRef[] {
 export function buildGitLogArgs(options: TreeCliOptions): string[] {
   const args = [
     'log',
-    '--topo-order',
+    '--date-order',
     '--parents',
     '--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%D%x00%s%x00%b%x1e',
   ];
