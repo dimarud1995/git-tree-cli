@@ -2,6 +2,7 @@ import { GraphRenderItem } from '../graph/router.js';
 import { TreeCliOptions } from '../git/types.js';
 import { computeAiContext, AiContextData } from '../utils/ai-context.js';
 import { TerminalRenderer } from './terminal.js';
+import { VERSION } from '../version.js';
 
 export interface JsonGraphNode {
   id: string;
@@ -84,7 +85,7 @@ export function renderJson(items: GraphRenderItem[], options?: TreeCliOptions): 
   }
 
   const output: JsonGraphOutput = {
-    version: '1.0.0',
+    version: VERSION,
     totalNodes: nodes.length,
     nodes,
   };

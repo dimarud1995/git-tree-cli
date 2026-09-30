@@ -6,6 +6,7 @@ import { TerminalRenderer } from './render/terminal.js';
 import { renderMarkdown } from './render/markdown.js';
 import { renderJson } from './render/json.js';
 import { TreeCliOptions } from './git/types.js';
+import { VERSION } from './version.js';
 
 export * from './git/types.js';
 export * from './git/runner.js';
@@ -17,6 +18,7 @@ export * from './render/markdown.js';
 export * from './render/json.js';
 export * from './render/theme.js';
 export * from './render/symbols.js';
+export * from './version.js';
 
 /**
  * Main programmatic entry point for git-tree
@@ -51,7 +53,7 @@ export async function generateGitTree(options: TreeCliOptions): Promise<string> 
   const nodes = buildGraphNodes(commits, status, stashes, resolvedOptions);
   if (nodes.length === 0) {
     if (resolvedOptions.format === 'json') {
-      return JSON.stringify({ version: '1.0.0', totalNodes: 0, nodes: [] }, null, 2);
+      return JSON.stringify({ version: VERSION, totalNodes: 0, nodes: [] }, null, 2);
     }
     if (resolvedOptions.format === 'markdown') {
       return '```text\n(No commits found)\n```';

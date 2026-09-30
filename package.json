@@ -1,6 +1,6 @@
 {
   "name": "git-tree-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI-first, visually stunning Git tree CLI tool with geometric Unicode curves, TrueColor styling, and orthogonal attributes",
   "type": "module",
   "main": "dist/index.js",

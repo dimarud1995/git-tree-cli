@@ -12,13 +12,14 @@ import {
   TreeCliOptions,
 } from './git/types.js';
 import { installSkill, ensurePath, SkillTarget } from './installer/skill-installer.js';
+import { VERSION } from './version.js';
 
 const program = new Command();
 
 program
   .name('git-tree')
   .description('AI-first, visually stunning Git tree CLI tool')
-  .version('1.0.0');
+  .version(VERSION);
 
 // Scoping
 program

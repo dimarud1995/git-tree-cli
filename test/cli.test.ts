@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
+import { VERSION } from '../src/version.js';
 
 const execFileAsync = promisify(execFile);
 const binPath = path.resolve(__dirname, '../bin/git-tree.js');
@@ -29,7 +30,7 @@ describe('CLI Integration', () => {
 
   it('outputs version with -V', async () => {
     const { stdout } = await execFileAsync('node', [binPath, '-V']);
-    expect(stdout.trim()).toBe('1.0.0');
+    expect(stdout.trim()).toBe(VERSION);
   });
 
   it('supports numeric shorthand limit like -2', async () => {

@@ -7,6 +7,7 @@ import { routeGraph } from '../src/graph/router.js';
 import { GitCommit, GitStatusSummary, TreeCliOptions } from '../src/git/types.js';
 import { getBranchColor } from '../src/utils/branch-color.js';
 import { wrapText } from '../src/utils/wrap.js';
+import { VERSION } from '../src/version.js';
 
 describe('Renderers', () => {
   const options: TreeCliOptions = {
@@ -92,7 +93,7 @@ describe('Renderers', () => {
     const jsonStr = renderJson(items);
     const data = JSON.parse(jsonStr);
 
-    expect(data.version).toBe('1.0.0');
+    expect(data.version).toBe(VERSION);
     expect(data.totalNodes).toBe(2); // dirty + commit
     expect(data.nodes[0].type).toBe('dirty');
     expect(data.nodes[1].type).toBe('commit');
