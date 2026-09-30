@@ -165,7 +165,8 @@ describe('CLI Integration', () => {
   it('supports --ai, automatically defaulting to markdown with <ai_context>', async () => {
     const { stdout } = await execFileAsync('node', [binPath, '-1', '--ai']);
     expect(stdout).toContain('<ai_context>');
-    expect(stdout).toContain('[UI_RENDERING_DIRECTIVES]');
+    expect(stdout).toContain('[TECHNICAL_UI_SPECIFICATION]');
+    expect(stdout).toContain('[CRITICAL_AI_CONSTRAINTS]');
     expect(stdout).toContain('```text');
     expect(stdout).toContain('git-tree-cli');
     expect(stdout).toContain('</ai_context>');

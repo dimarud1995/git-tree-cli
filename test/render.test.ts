@@ -668,11 +668,12 @@ describe('Renderers', () => {
     const output = renderMarkdown(items, aiOpts);
 
     expect(output).toContain('<ai_context>');
-    expect(output).toContain('[UI_RENDERING_DIRECTIVES]');
+    expect(output).toContain('[TECHNICAL_UI_SPECIFICATION]');
     expect(output).toContain('columns ×');
     expect(output).toContain('rows');
-    expect(output).toContain('line_wrap: false');
-    expect(output).toContain('[REPOSITORY_CONTEXT]');
+    expect(output).toContain('overflow-x: auto (NO_WRAP)');
+    expect(output).toContain('[CRITICAL_AI_CONSTRAINTS]');
+    expect(output).toContain('[REPOSITORY_METADATA]');
     expect(output).toContain('ai-repo');
     expect(output).toContain('</ai_context>');
     expect(output).toContain('```text');

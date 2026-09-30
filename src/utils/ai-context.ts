@@ -73,7 +73,7 @@ export function computeAiContext(
 }
 
 /**
- * Formats an XML directive envelope for AI agents (<ai_context> ... </ai_context>)
+ * Formats a rigorous, technical XML directive envelope for AI agents (<ai_context> ... </ai_context>)
  */
 export function formatAiContextEnvelope(
   items: GraphRenderItem[],
@@ -85,17 +85,26 @@ export function formatAiContextEnvelope(
   const commitText = `${ctx.repository.commitsDisplayed} ${ctx.repository.commitsDisplayed === 1 ? 'commit' : 'commits'}`;
   const stashText = ctx.repository.stashesDisplayed > 0 ? `, ${ctx.repository.stashesDisplayed} ${ctx.repository.stashesDisplayed === 1 ? 'stash' : 'stashes'}` : '';
   const dirtyText = ctx.repository.dirtyWorktree ? ', dirty worktree' : ', clean worktree';
+  const codeTag = options.color === 'always' ? 'ansi' : 'text';
 
   const lines: string[] = [
     '<ai_context>',
-    '[UI_RENDERING_DIRECTIVES]',
-    `- container: "${ctx.directives.container}"`,
-    `- dimensions: ${ctx.dimensions.width} columns × ${ctx.dimensions.rows} rows`,
-    `- line_wrap: false (preserve vertical monospace alignment; enable horizontal scroll if viewport < ${ctx.dimensions.width}ch)`,
-    `- instruction: "${ctx.directives.instruction}"`,
+    '[TECHNICAL_UI_SPECIFICATION]',
+    `- container_syntax: "\`\`\`${codeTag}\\n<PAYLOAD>\\n\`\`\`"`,
+    '- font_requirement: strict monospace',
+    `- exact_grid_dimensions: ${ctx.dimensions.width} columns × ${ctx.dimensions.rows} lines`,
+    `- overflow_rule: overflow-x: auto (NO_WRAP). NEVER soft-wrap table rows; line-wrapping breaks vertical graph connectivity.`,
+    `- character_integrity: Box-drawing curves (╭─, ╰─, │, ├─) and geometric glyphs (●, ◉, ◆, ■, ▲, ○, ◎) require exact column coordinate alignment.`,
     '',
-    '[REPOSITORY_CONTEXT]',
-    `- repo: "${ctx.repository.name || 'git-repo'}"`,
+    '[CRITICAL_AI_CONSTRAINTS]',
+    '1. ZERO-MODIFICATION: Output the enclosed code block byte-for-byte verbatim.',
+    '2. DO NOT CONVERT into Markdown tables (| col |), bulleted lists, or narrative text.',
+    '3. DO NOT STRIP or normalize leading/trailing whitespace or inter-column gaps.',
+    '4. DO NOT SUBSTITUTE Unicode glyphs or badges with emojis or ASCII simplifications.',
+    '5. CONTEXT USAGE: Use the repository metadata below to answer user queries conversationally, but always keep the visual tree code block intact.',
+    '',
+    '[REPOSITORY_METADATA]',
+    `- repository: "${ctx.repository.name || 'git-repo'}"`,
     `- branch: "${ctx.repository.headBranch || 'HEAD'}"`,
     `- displayed_nodes: ${commitText}${stashText}${dirtyText}`,
     '</ai_context>',

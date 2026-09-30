@@ -11,10 +11,12 @@ export function renderMarkdown(
   items: GraphRenderItem[],
   options: TreeCliOptions
 ): string {
-  // Use 'never' for color so ANSI escape codes are not emitted in markdown
+  const codeTag = options.color === 'always' ? 'ansi' : 'text';
+  // Use 'never' for color by default so ANSI escape codes are not emitted in markdown,
+  // unless explicitly requested with --color always (e.g. for GitHub ```ansi blocks)
   const plainOptions: TreeCliOptions = {
     ...options,
-    color: 'never',
+    color: options.color === 'always' ? 'always' : 'never',
   };
 
   const renderer = new TerminalRenderer(plainOptions);
@@ -28,7 +30,7 @@ export function renderMarkdown(
     lines.push('');
   }
 
-  lines.push('```text');
+  lines.push(`\`\`\`${codeTag}`);
   lines.push(treeText || '(No commits to display)');
   lines.push('```');
 
