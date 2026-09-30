@@ -102,37 +102,6 @@ export class TerminalRenderer {
     // If multiple author filters, KEEP Column 4 visible so the user can distinguish between them!
     const showAuthorCol = (!isSingleAuthor || this.options.columns !== undefined) && this.columns.showAuthor;
 
-    // Top Author Banner when author filter is active
-    if (hasAuthorFilter) {
-      let bannerText = '';
-      let authorColor = this.colorizer.theme.author;
-
-      if (isSingleAuthor) {
-        let firstCommit: GitCommit | undefined;
-        for (const it of items) {
-          if (it.kind === 'node' && it.row.node.commit) {
-            firstCommit = it.row.node.commit;
-            break;
-          }
-        }
-        const authorDisplayName = firstCommit
-          ? `${firstCommit.authorName} <${firstCommit.authorEmail}>`
-          : authorFilters[0];
-        authorColor = firstCommit
-          ? getAuthorColor(firstCommit.authorName)
-          : this.colorizer.theme.author;
-        bannerText = `Author: ${authorDisplayName}`;
-      } else {
-        bannerText = `Authors: ${authorFilters.join(', ')}`;
-      }
-
-      const banner = this.colorizer.bold(
-        this.colorizer.color(bannerText, authorColor)
-      );
-      lines.push(banner);
-      lines.push('');
-    }
-
     // 4. Calculate Author Column Width (Column 4)
     let col4Width = 0;
     if (showAuthorCol) {
@@ -167,6 +136,47 @@ export class TerminalRenderer {
     const col3Width = showCol3 ? Math.max(20, targetTotalWidth - otherWidths - totalGaps) : 0;
 
     const gapStr = ' '.repeat(COLUMN_GAP);
+
+    // Top Repository Header
+    const showHeader = this.options.showHeader !== false;
+    if (showHeader) {
+      const headerLine = this.renderHeader(items, targetTotalWidth);
+      lines.push(headerLine);
+      if (this.options.layout !== 'compact') {
+        lines.push('');
+      }
+    }
+
+    // Top Author Banner when author filter is active
+    if (hasAuthorFilter) {
+      let bannerText = '';
+      let authorColor = this.colorizer.theme.author;
+
+      if (isSingleAuthor) {
+        let firstCommit: GitCommit | undefined;
+        for (const it of items) {
+          if (it.kind === 'node' && it.row.node.commit) {
+            firstCommit = it.row.node.commit;
+            break;
+          }
+        }
+        const authorDisplayName = firstCommit
+          ? `${firstCommit.authorName} <${firstCommit.authorEmail}>`
+          : authorFilters[0];
+        authorColor = firstCommit
+          ? getAuthorColor(firstCommit.authorName)
+          : this.colorizer.theme.author;
+        bannerText = `Author: ${authorDisplayName}`;
+      } else {
+        bannerText = `Authors: ${authorFilters.join(', ')}`;
+      }
+
+      const banner = this.colorizer.bold(
+        this.colorizer.color(bannerText, authorColor)
+      );
+      lines.push(banner);
+      lines.push('');
+    }
 
     // 6. Render Rows
     for (let i = 0; i < items.length; i++) {
@@ -641,6 +651,67 @@ export class TerminalRenderer {
         return this.colorizer.colorLane(char, laneIndex);
       })
       .join('');
+  }
+
+  /**
+   * Renders the top-level repository header rule
+   */
+  public renderHeader(items: GraphRenderItem[], tableWidth: number): string {
+    const ruleChar = this.symbols.hLine || '─';
+    const repoName = this.options.repoName;
+    const headBranch = this.options.headBranch;
+
+    // Count commits displayed
+    const commitCount = items.filter(
+      (it) => it.kind === 'node' && it.row.node.type === 'commit'
+    ).length;
+    const totalNodes = items.filter((it) => it.kind === 'node').length;
+    const count = commitCount > 0 ? commitCount : totalNodes;
+    const countUnit = commitCount > 0 ? (count === 1 ? 'commit' : 'commits') : (count === 1 ? 'item' : 'items');
+    const countStr = `${count} ${countUnit}`;
+
+    // Components unstyled for width calculation
+    const leftUncolored = `${ruleChar.repeat(3)} GIT TREE${repoName ? ` ${ruleChar.repeat(2)} ${repoName}${headBranch ? ` (${headBranch})` : ''}` : ''}`;
+    const rightUncolored = `${countStr} ${ruleChar.repeat(3)}`;
+
+    const leftLen = visibleWidth(leftUncolored);
+    const rightLen = visibleWidth(rightUncolored);
+
+    // Styled components
+    const prefix = this.colorizer.dim(ruleChar.repeat(3)) + ' ';
+    const title = this.colorizer.bold(this.colorizer.color('GIT TREE', this.colorizer.theme.head));
+
+    let projectInfo = '';
+    if (repoName) {
+      projectInfo += ' ' + this.colorizer.dim(ruleChar.repeat(2)) + ' ' + this.colorizer.bold(this.colorizer.color(repoName, this.colorizer.theme.branch));
+      if (headBranch) {
+        projectInfo += ' ' + this.colorizer.color(`(${headBranch})`, this.colorizer.theme.head);
+      }
+    }
+
+    const styledLeft = prefix + title + projectInfo;
+    const styledRight = this.colorizer.color(countStr, this.colorizer.theme.date) + ' ' + this.colorizer.dim(ruleChar.repeat(3));
+
+    // Wide display: include right count
+    if (tableWidth - leftLen - rightLen - 2 >= 2) {
+      const middleLen = tableWidth - leftLen - rightLen - 2;
+      const middleRule = ' ' + this.colorizer.dim(ruleChar.repeat(middleLen)) + ' ';
+      return styledLeft + middleRule + styledRight;
+    }
+
+    // Medium display: drop right count and fill remaining space
+    const avail = tableWidth - leftLen - 1;
+    if (avail >= 3) {
+      return styledLeft + ' ' + this.colorizer.dim(ruleChar.repeat(avail));
+    }
+
+    // Narrow display fallback
+    const fallback = prefix + title;
+    const fallbackLen = visibleWidth(`${ruleChar.repeat(3)} GIT TREE`);
+    if (tableWidth > fallbackLen + 1) {
+      return fallback + ' ' + this.colorizer.dim(ruleChar.repeat(tableWidth - fallbackLen - 1));
+    }
+    return fallback;
   }
 }
 

@@ -119,4 +119,46 @@ describe('CLI Integration', () => {
     ]);
     expect(fullOut).toContain('```text');
   });
+
+  it('renders repository header by default and supports --no-header / --hide-header', async () => {
+    const { stdout: defaultOut } = await execFileAsync('node', [
+      binPath,
+      '-1',
+      '--format',
+      'markdown',
+    ]);
+    expect(defaultOut).toContain('GIT TREE');
+    expect(defaultOut).toContain('git-tree-cli');
+    expect(defaultOut).toContain('1 commit');
+
+    const { stdout: noHeaderOut } = await execFileAsync('node', [
+      binPath,
+      '-1',
+      '--format',
+      'markdown',
+      '--no-header',
+    ]);
+    expect(noHeaderOut).not.toContain('GIT TREE');
+
+    const { stdout: hideHeaderOut } = await execFileAsync('node', [
+      binPath,
+      '-1',
+      '--format',
+      'markdown',
+      '--hide-header',
+    ]);
+    expect(hideHeaderOut).not.toContain('GIT TREE');
+  });
+
+  it('supports overriding repository display name with --repo-name', async () => {
+    const { stdout } = await execFileAsync('node', [
+      binPath,
+      '-1',
+      '--format',
+      'markdown',
+      '--repo-name',
+      'custom-project-name',
+    ]);
+    expect(stdout).toContain('custom-project-name');
+  });
 });

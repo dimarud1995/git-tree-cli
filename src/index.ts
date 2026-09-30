@@ -1,4 +1,4 @@
-import { isGitRepository, getHeadInfo } from './git/runner.js';
+import { isGitRepository, getHeadInfo, getRepoName } from './git/runner.js';
 import { fetchCommits, fetchStatus, fetchStashes } from './git/parser.js';
 import { buildGraphNodes } from './graph/dag.js';
 import { routeGraph } from './graph/router.js';
@@ -27,37 +27,48 @@ export async function generateGitTree(options: TreeCliOptions): Promise<string> 
     throw new Error(`Fatal: not a git repository (cwd: ${options.cwd || process.cwd()})`);
   }
 
-  const headInfo = await getHeadInfo(options.cwd);
+  const [headInfo, repoName] = await Promise.all([
+    getHeadInfo(options.cwd),
+    options.repoName !== undefined ? Promise.resolve(options.repoName) : getRepoName(options.cwd),
+  ]);
+
+  const headBranch = options.headBranch !== undefined ? options.headBranch : headInfo.branch;
+
+  const resolvedOptions: TreeCliOptions = {
+    ...options,
+    repoName,
+    headBranch,
+  };
 
   // Parallel fetch of commits, status, and stashes
   const [commits, status, stashes] = await Promise.all([
-    fetchCommits(options, headInfo.hash),
-    options.status !== 'exclude' ? fetchStatus(options.cwd) : { dirty: false, stagedCount: 0, unstagedCount: 0, untrackedCount: 0 },
-    options.stashes !== 'exclude' ? fetchStashes(options.cwd) : [],
+    fetchCommits(resolvedOptions, headInfo.hash),
+    resolvedOptions.status !== 'exclude' ? fetchStatus(resolvedOptions.cwd) : { dirty: false, stagedCount: 0, unstagedCount: 0, untrackedCount: 0 },
+    resolvedOptions.stashes !== 'exclude' ? fetchStashes(resolvedOptions.cwd) : [],
   ]);
 
   // Build DAG & route lanes
-  const nodes = buildGraphNodes(commits, status, stashes, options);
+  const nodes = buildGraphNodes(commits, status, stashes, resolvedOptions);
   if (nodes.length === 0) {
-    if (options.format === 'json') {
+    if (resolvedOptions.format === 'json') {
       return JSON.stringify({ version: '1.0.0', totalNodes: 0, nodes: [] }, null, 2);
     }
-    if (options.format === 'markdown') {
+    if (resolvedOptions.format === 'markdown') {
       return '```text\n(No commits found)\n```';
     }
     return '(No commits found matching criteria)';
   }
 
-  const items = routeGraph(nodes, options.lines || 'portal');
+  const items = routeGraph(nodes, resolvedOptions.lines || 'portal');
 
   // Render according to requested format
-  if (options.format === 'json') {
+  if (resolvedOptions.format === 'json') {
     return renderJson(items);
   }
-  if (options.format === 'markdown') {
-    return renderMarkdown(items, options);
+  if (resolvedOptions.format === 'markdown') {
+    return renderMarkdown(items, resolvedOptions);
   }
 
-  const renderer = new TerminalRenderer(options);
+  const renderer = new TerminalRenderer(resolvedOptions);
   return renderer.render(items);
 }

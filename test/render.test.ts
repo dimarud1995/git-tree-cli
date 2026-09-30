@@ -125,13 +125,14 @@ describe('Renderers', () => {
     const renderer = new TerminalRenderer(narrowOptions);
     const output = renderer.render(items);
     const lines = output.split('\n');
+    const commitLines = lines.filter((l) => !l.startsWith('───') && l.trim().length > 0);
 
-    expect(lines.length).toBeGreaterThan(1); // Wrapped into multiple lines
+    expect(commitLines.length).toBeGreaterThan(1); // Wrapped into multiple lines
     // First line has hash
-    expect(lines[0]).toContain('b2c3d4e');
+    expect(commitLines[0]).toContain('b2c3d4e');
     // Continuation line continues vertical line and does not repeat hash
-    expect(lines[1]).toContain('│');
-    expect(lines[1]).not.toContain('b2c3d4e');
+    expect(commitLines[1]).toContain('│');
+    expect(commitLines[1]).not.toContain('b2c3d4e');
   });
 
   it('shows top banner and removes author column when author filter is active', () => {
@@ -147,8 +148,8 @@ describe('Renderers', () => {
     const output = renderer.render(items);
     const lines = output.split('\n');
 
-    // Shows Author: banner at the top
-    expect(lines[0]).toContain('Author: Developer');
+    // Shows Author: banner
+    expect(output).toContain('Author: Developer');
     // The commit row does not have Developer at the end as Column 4
     const commitLine = lines.find((l) => l.includes('a1b2c3d'));
     expect(commitLine).toBeDefined();
@@ -265,15 +266,17 @@ describe('Renderers', () => {
     const renderer = new TerminalRenderer({ ...options, status: 'exclude' });
     const output = renderer.render(items);
     const lines = output.split('\n');
+    const commitIdx = lines.findIndex((l) => l.includes('a1b2c3d'));
+    expect(commitIdx).toBeGreaterThanOrEqual(0);
 
     // First line: contains hash in col 2 and author in col 4
-    expect(lines[0]).toContain('a1b2c3d');
-    expect(lines[0]).toContain('Developer');
-    expect(lines[0]).not.toContain('2h ago');
+    expect(lines[commitIdx]).toContain('a1b2c3d');
+    expect(lines[commitIdx]).toContain('Developer');
+    expect(lines[commitIdx]).not.toContain('2h ago');
 
     // Second line: contains 2h ago in col 2, and does not contain Developer
-    expect(lines[1]).toContain('2h ago');
-    expect(lines[1]).not.toContain('Developer');
+    expect(lines[commitIdx + 1]).toContain('2h ago');
+    expect(lines[commitIdx + 1]).not.toContain('Developer');
   });
 
   it('does not orphan badge symbols or bracket prefixes on their own line when wrapping', () => {
@@ -313,8 +316,9 @@ describe('Renderers', () => {
       expect(line.trim()).not.toBe('(▹');
     }
 
-    // Line 0 should contain the start of the branch name alongside the badge icon
-    expect(lines[0]).toContain('(▹ origin/');
+    // A line should contain the start of the branch name alongside the badge icon
+    const branchLine = lines.find((l) => l.includes('(▹ origin/'));
+    expect(branchLine).toBeDefined();
   });
 
   it('renders [MERGE] in red, [REBASE] in purple, [FAST-FORWARD] in cyan, and [SQUASH] in amber', () => {
@@ -578,6 +582,79 @@ describe('Renderers', () => {
     const billingAnsi = `\x1b[38;2;${r};${g};${b}m`;
 
     expect(output).toContain(billingAnsi);
+  });
+
+  it('renders header with project title, branch, and commit count', () => {
+    const headerOpts: TreeCliOptions = {
+      ...options,
+      status: 'exclude',
+      repoName: 'my-project',
+      headBranch: 'main',
+    };
+    const nodes = buildGraphNodes(commits, cleanStatus, [], headerOpts);
+    const items = routeGraph(nodes);
+    const renderer = new TerminalRenderer(headerOpts);
+    const output = renderer.render(items);
+    const lines = output.split('\n');
+
+    expect(lines[0]).toContain('GIT TREE');
+    expect(lines[0]).toContain('my-project');
+    expect(lines[0]).toContain('(main)');
+    expect(lines[0]).toContain('1 commit');
+    expect(lines[0]).toContain('─');
+    expect(lines[1]).toBe(''); // 1 blank line in normal layout
+  });
+
+  it('renders header with ASCII style hyphens', () => {
+    const asciiOpts: TreeCliOptions = {
+      ...options,
+      status: 'exclude',
+      style: 'ascii',
+      repoName: 'my-project',
+      headBranch: 'feature/test',
+    };
+    const nodes = buildGraphNodes(commits, cleanStatus, [], asciiOpts);
+    const items = routeGraph(nodes);
+    const renderer = new TerminalRenderer(asciiOpts);
+    const output = renderer.render(items);
+    const lines = output.split('\n');
+
+    expect(lines[0]).toContain('--- GIT TREE -- my-project (feature/test)');
+    expect(lines[0]).toContain('1 commit ---');
+  });
+
+  it('omits header when showHeader is false', () => {
+    const noHeaderOpts: TreeCliOptions = {
+      ...options,
+      status: 'exclude',
+      showHeader: false,
+    };
+    const nodes = buildGraphNodes(commits, cleanStatus, [], noHeaderOpts);
+    const items = routeGraph(nodes);
+    const renderer = new TerminalRenderer(noHeaderOpts);
+    const output = renderer.render(items);
+
+    expect(output).not.toContain('GIT TREE');
+  });
+
+  it('renders header without extra blank line in compact layout', () => {
+    const compactOpts: TreeCliOptions = {
+      ...options,
+      status: 'exclude',
+      layout: 'compact',
+      repoName: 'compact-repo',
+      headBranch: 'main',
+    };
+    const nodes = buildGraphNodes(commits, cleanStatus, [], compactOpts);
+    const items = routeGraph(nodes);
+    const renderer = new TerminalRenderer(compactOpts);
+    const output = renderer.render(items);
+    const lines = output.split('\n');
+
+    expect(lines[0]).toContain('GIT TREE');
+    expect(lines[0]).toContain('compact-repo');
+    // In compact mode, line 1 is the commit directly (no blank line)
+    expect(lines[1]).toContain('a1b2c3d');
   });
 });
 

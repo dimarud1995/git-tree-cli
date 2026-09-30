@@ -25,6 +25,8 @@ Standard `git log --graph` produces narrow, hard-to-read ASCII text with minimal
 ## Visual Example
 
 ```text
+─── GIT TREE ── payment-service (feature/payments) ────────────────────────────── 4 commits ───
+
 ○       [DIRTY]    Working tree dirty (+2 staged, 1 unstaged)
 │
 ◉       42a805f    (HEAD -> feature/payments) Implement Stripe payment processor                Dmitry R.
@@ -188,6 +190,11 @@ git-tree --theme mono          # Plain monochrome
 git-tree --style curved        # Rounded corners (╭─ ╰─) (default)
 git-tree --style straight      # Sharp corners (┌─ └─)
 git-tree --style ascii         # Pure ASCII (| / \ *)
+
+# Repository Header Rule
+git-tree                       # Header enabled by default (shows repo name, active branch, and commit count)
+git-tree --no-header           # Hide repository header rule (or --hide-header)
+git-tree --repo-name <name>    # Override repository display title in header
 ```
 
 ### 5. Dedicated Commit Type Badges

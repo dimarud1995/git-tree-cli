@@ -73,3 +73,20 @@ export async function getHeadInfo(cwd?: string): Promise<{ hash: string; branch?
     return { hash: '' };
   }
 }
+
+/**
+ * Get the repository name (root directory name)
+ */
+export async function getRepoName(cwd?: string): Promise<string> {
+  try {
+    const toplevel = (await runGit(['rev-parse', '--show-toplevel'], { cwd })).trim();
+    if (toplevel) {
+      const normalized = toplevel.replace(/[/\\]+$/, '');
+      const parts = normalized.split(/[/\\]/);
+      return parts[parts.length - 1] || '';
+    }
+  } catch {
+    // Fallback if not inside work tree or bare repo
+  }
+  return '';
+}

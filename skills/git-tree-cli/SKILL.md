@@ -89,5 +89,7 @@ When the user asks you questions about their Git repository, history, branches, 
 - `--no-author` / `--hide-author`: Omit author column.
 - `--no-date` / `--hide-date`: Omit date under commit hash.
 - `--no-hash` / `--hide-hash`: Omit commit hash column.
+- `--no-header` / `--hide-header`: Omit top repository header banner rule (shows repo name, branch, and commit count by default).
+- `--repo-name <name>`: Override repository display title in header.
 - `--description` / `--body`: Show commit message body description (default: false, only titles shown).
 - `--explain-flags`: Outputs machine-readable JSON schema of all flags.

@@ -85,6 +85,9 @@ export interface TreeCliOptions {
   showDescription?: boolean;
   columns?: string[];
   skipColumns?: string[];
+  showHeader?: boolean;
+  repoName?: string;
+  headBranch?: string;
   hashLen: number;
   width?: number;
 
