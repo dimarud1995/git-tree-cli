@@ -6,6 +6,7 @@ import { buildGraphNodes } from '../src/graph/dag.js';
 import { routeGraph } from '../src/graph/router.js';
 import { GitCommit, GitStatusSummary, TreeCliOptions } from '../src/git/types.js';
 import { getBranchColor } from '../src/utils/branch-color.js';
+import { wrapText } from '../src/utils/wrap.js';
 
 describe('Renderers', () => {
   const options: TreeCliOptions = {
@@ -697,6 +698,107 @@ describe('Renderers', () => {
     expect(data.aiContext.dimensions.rows).toBeGreaterThan(0);
     expect(data.aiContext.directives.lineWrap).toBe(false);
     expect(data.aiContext.repository.name).toBe('json-ai-repo');
+  });
+
+  it('wrapText preserves active ANSI escape styles across line splits', () => {
+    const styledText = '\x1b[38;2;86;95;137mFirst line text that is long enough to wrap onto a second line\x1b[39m';
+    const wrapped = wrapText(styledText, 30);
+    expect(wrapped.length).toBeGreaterThan(1);
+    for (const line of wrapped) {
+      expect(line).toContain('\x1b[38;2;86;95;137m');
+    }
+  });
+
+  it('preserves ANSI color on all wrapped lines of commit subject in normal layout', () => {
+    const multiLineCommit: GitCommit = {
+      hash: 'e2c5fa7a1b2c',
+      shortHash: 'e2c5fa7',
+      parents: [],
+      authorName: 'Developer',
+      authorEmail: 'dev@example.com',
+      authorDate: Math.floor(Date.now() / 1000) - 86400,
+      subject:
+        'docs(webhooks): search frontmatter for the 2026-09-29 next-steps plan, which DocumentFrontmatterTests requires',
+      refs: [
+        {
+          type: 'branch',
+          name: 'service/api',
+          fullName: 'refs/heads/service/api',
+        },
+      ],
+      isMerge: false,
+      isRoot: true,
+      isHead: false,
+    };
+
+    const colorOptions: TreeCliOptions = {
+      ...options,
+      status: 'exclude',
+      color: 'always',
+      theme: 'tokyo',
+      showHeader: false,
+      width: 80,
+    };
+
+    const nodes = buildGraphNodes([multiLineCommit], cleanStatus, [], colorOptions);
+    const items = routeGraph(nodes);
+    const renderer = new TerminalRenderer(colorOptions);
+    const output = renderer.render(items);
+    const lines = output.split('\n').filter((l) => !l.startsWith('───') && l.trim().length > 0);
+
+    // In normal layout with branch ref:
+    // Line 1 contains branch name & badges
+    // Line 2 contains line 1 of commit subject
+    // Line 3 contains line 2 of commit subject ("DocumentFrontmatterTests requires")
+    expect(lines.length).toBeGreaterThanOrEqual(3);
+
+    // Both line 2 and line 3 must contain the commit subject color code (\x1b[38;2;86;95;137m for tokyo theme remote)
+    const tokyoRemoteColor = '\x1b[38;2;86;95;137m';
+    expect(lines[1]).toContain('docs(webhooks):');
+    expect(lines[1]).toContain(tokyoRemoteColor);
+
+    expect(lines[2]).toContain('DocumentFrontmatterTests');
+    expect(lines[2]).toContain(tokyoRemoteColor);
+  });
+
+  it('preserves dim ANSI styling on all wrapped lines of commit body description', () => {
+    const multiLineBodyCommit: GitCommit = {
+      hash: 'c3d4e5f6a1b2',
+      shortHash: 'c3d4e5f',
+      parents: [],
+      authorName: 'Developer',
+      authorEmail: 'dev@example.com',
+      authorDate: Math.floor(Date.now() / 1000) - 86400,
+      subject: 'feat: add payment gateway',
+      body: 'Detailed description that wraps across multiple lines cleanly to ensure dim styling remains intact on every single row',
+      refs: [],
+      isMerge: false,
+      isRoot: true,
+      isHead: false,
+    };
+
+    const descOptions: TreeCliOptions = {
+      ...options,
+      status: 'exclude',
+      color: 'always',
+      showDescription: true,
+      showHeader: false,
+      width: 70,
+    };
+
+    const nodes = buildGraphNodes([multiLineBodyCommit], cleanStatus, [], descOptions);
+    const items = routeGraph(nodes);
+    const renderer = new TerminalRenderer(descOptions);
+    const output = renderer.render(items);
+    const lines = output.split('\n').filter((l) => !l.startsWith('───') && l.trim().length > 0);
+
+    // Body lines should wrap and both wrapped lines must have the dim escape code (\x1b[2m)
+    const dimCode = '\x1b[2m';
+    const bodyRows = lines.filter((l) => l.includes('Detailed description') || l.includes('cleanly to ensure'));
+    expect(bodyRows.length).toBeGreaterThanOrEqual(2);
+    for (const bRow of bodyRows) {
+      expect(bRow).toContain(dimCode);
+    }
   });
 });
 

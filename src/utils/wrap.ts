@@ -28,6 +28,101 @@ export function padVisible(str: string, targetWidth: number, align: 'left' | 'ri
 }
 
 /**
+ * Updates the list of active ANSI codes based on an ANSI escape code.
+ */
+function updateActiveAnsi(activeAnsi: string[], code: string): void {
+  if (code === '\x1b[0m') {
+    activeAnsi.length = 0;
+  } else if (code === '\x1b[39m') {
+    // Reset foreground color
+    for (let i = activeAnsi.length - 1; i >= 0; i--) {
+      const a = activeAnsi[i];
+      if (
+        a.startsWith('\x1b[38;') ||
+        /^\x1b\[3[0-7]m/.test(a) ||
+        /^\x1b\[9[0-7]m/.test(a)
+      ) {
+        activeAnsi.splice(i, 1);
+      }
+    }
+  } else if (code === '\x1b[49m') {
+    // Reset background color
+    for (let i = activeAnsi.length - 1; i >= 0; i--) {
+      const a = activeAnsi[i];
+      if (
+        a.startsWith('\x1b[48;') ||
+        /^\x1b\[4[0-7]m/.test(a) ||
+        /^\x1b\[10[0-7]m/.test(a)
+      ) {
+        activeAnsi.splice(i, 1);
+      }
+    }
+  } else if (code === '\x1b[22m') {
+    // Reset bold / dim
+    for (let i = activeAnsi.length - 1; i >= 0; i--) {
+      if (activeAnsi[i] === '\x1b[1m' || activeAnsi[i] === '\x1b[2m') {
+        activeAnsi.splice(i, 1);
+      }
+    }
+  } else {
+    // New foreground color replaces existing foreground color
+    if (
+      code.startsWith('\x1b[38;') ||
+      /^\x1b\[3[0-7]m/.test(code) ||
+      /^\x1b\[9[0-7]m/.test(code)
+    ) {
+      for (let i = activeAnsi.length - 1; i >= 0; i--) {
+        const a = activeAnsi[i];
+        if (
+          a.startsWith('\x1b[38;') ||
+          /^\x1b\[3[0-7]m/.test(a) ||
+          /^\x1b\[9[0-7]m/.test(a)
+        ) {
+          activeAnsi.splice(i, 1);
+        }
+      }
+    }
+    // New background color replaces existing background color
+    if (
+      code.startsWith('\x1b[48;') ||
+      /^\x1b\[4[0-7]m/.test(code) ||
+      /^\x1b\[10[0-7]m/.test(code)
+    ) {
+      for (let i = activeAnsi.length - 1; i >= 0; i--) {
+        const a = activeAnsi[i];
+        if (
+          a.startsWith('\x1b[48;') ||
+          /^\x1b\[4[0-7]m/.test(a) ||
+          /^\x1b\[10[0-7]m/.test(a)
+        ) {
+          activeAnsi.splice(i, 1);
+        }
+      }
+    }
+    // New bold/dim replaces existing intensity
+    if (code === '\x1b[1m' || code === '\x1b[2m') {
+      for (let i = activeAnsi.length - 1; i >= 0; i--) {
+        if (activeAnsi[i] === '\x1b[1m' || activeAnsi[i] === '\x1b[2m') {
+          activeAnsi.splice(i, 1);
+        }
+      }
+    }
+    activeAnsi.push(code);
+  }
+}
+
+/**
+ * Scans a string for ANSI escape codes and updates the active ANSI state.
+ */
+function scanAnsiCodes(str: string, activeAnsi: string[]): void {
+  const matches = str.match(/\x1b\[[0-9;]*m/g);
+  if (!matches) return;
+  for (const m of matches) {
+    updateActiveAnsi(activeAnsi, m);
+  }
+}
+
+/**
  * Slices an ANSI-formatted string at a visible character position,
  * cleanly closing active ANSI styles at the end of head and reopening them at the start of tail.
  */
@@ -43,13 +138,7 @@ export function sliceAnsiVisible(str: string, maxVisible: number): { head: strin
     if (match) {
       const code = match[0];
       head += code;
-      if (code === '\x1b[0m' || code === '\x1b[39m') {
-        const filtered = activeAnsi.filter((a) => !a.startsWith('\x1b[38;') && a !== '\x1b[39m');
-        activeAnsi.length = 0;
-        activeAnsi.push(...filtered);
-      } else {
-        activeAnsi.push(code);
-      }
+      updateActiveAnsi(activeAnsi, code);
       i += code.length;
       continue;
     }
@@ -98,6 +187,24 @@ export function wrapText(text: string, maxWidth: number): string[] {
   const lines: string[] = [];
   let currentLine = '';
   let currentVisibleLen = 0;
+  const activeAnsi: string[] = [];
+
+  const flushLine = () => {
+    if (currentLine === '') return;
+    if (activeAnsi.length > 0 && !currentLine.endsWith('\x1b[0m') && !currentLine.endsWith('\x1b[39m')) {
+      lines.push(currentLine + '\x1b[0m');
+    } else {
+      lines.push(currentLine);
+    }
+    currentLine = '';
+    currentVisibleLen = 0;
+  };
+
+  const startNewLineWithActiveStyles = () => {
+    if (activeAnsi.length > 0) {
+      currentLine = activeAnsi.join('');
+    }
+  };
 
   for (let i = 0; i < rawWords.length; i++) {
     let word = rawWords[i];
@@ -105,24 +212,32 @@ export function wrapText(text: string, maxWidth: number): string[] {
 
     let wordVisLen = visibleWidth(word);
 
-    // If word fits on current line with a preceding space
-    if (currentLine !== '' && currentVisibleLen + 1 + wordVisLen <= maxWidth) {
-      currentLine += ' ' + word;
-      currentVisibleLen += 1 + wordVisLen;
+    // If word fits on current line with a preceding space (if line already has visible text)
+    const needsSpace = currentVisibleLen > 0;
+    const additionalLen = needsSpace ? 1 + wordVisLen : wordVisLen;
+
+    if (currentVisibleLen + additionalLen <= maxWidth) {
+      if (needsSpace) {
+        currentLine += ' ' + word;
+      } else {
+        currentLine += word;
+      }
+      currentVisibleLen += additionalLen;
+      scanAnsiCodes(word, activeAnsi);
       continue;
     }
 
-    // If current line has content and word doesn't fit, flush current line
-    if (currentLine !== '') {
-      lines.push(currentLine);
-      currentLine = '';
-      currentVisibleLen = 0;
+    // If current line has visible content and word doesn't fit, flush current line
+    if (currentVisibleLen > 0) {
+      flushLine();
+      startNewLineWithActiveStyles();
     }
 
-    // Now currentLine is empty. If word fits on a fresh line, put it there
+    // Now currentLine has 0 visible characters. If word fits on a fresh line, put it there
     if (wordVisLen <= maxWidth) {
-      currentLine = word;
+      currentLine += word;
       currentVisibleLen = wordVisLen;
+      scanAnsiCodes(word, activeAnsi);
       continue;
     }
 
@@ -131,19 +246,22 @@ export function wrapText(text: string, maxWidth: number): string[] {
       const plain = stripAnsi(word);
       const breakAt = findNaturalBreak(plain, maxWidth);
       const { head, tail } = sliceAnsiVisible(word, breakAt);
-      lines.push(head);
+      currentLine += head;
+      flushLine();
+      startNewLineWithActiveStyles();
       word = tail;
       wordVisLen = visibleWidth(word);
     }
 
     if (word.length > 0) {
-      currentLine = word;
+      currentLine += word;
       currentVisibleLen = wordVisLen;
+      scanAnsiCodes(word, activeAnsi);
     }
   }
 
-  if (currentLine.length > 0) {
-    lines.push(currentLine);
+  if (currentVisibleLen > 0) {
+    flushLine();
   }
 
   // Restore non-breaking spaces back to regular spaces for clean terminal output and clipboard copy

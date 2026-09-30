@@ -486,12 +486,11 @@ export class TerminalRenderer {
 
           // Subject styled using the dark branch name color category (theme.remote)
           const subjectColor = this.colorizer.theme.remote;
-          const subjectStyled = this.colorizer.color(node.commit.subject, subjectColor);
 
           if (this.options.layout === 'compact') {
             const parts: string[] = [];
             if (firstLineParts.length > 0) parts.push(...firstLineParts);
-            parts.push(subjectStyled);
+            parts.push(this.colorizer.color(node.commit.subject, subjectColor));
             descLines.push(...wrapText(parts.join(' '), col3Width));
           } else {
             // Normal & Expanded layouts:
@@ -500,14 +499,19 @@ export class TerminalRenderer {
               descLines.push(...wrapText(firstLineParts.join('  '), col3Width));
             }
             // Line 2: Commit title (subject) below the branch name
-            descLines.push(...wrapText(subjectStyled, col3Width));
+            const subjectLines = wrapText(node.commit.subject, col3Width);
+            for (const sLine of subjectLines) {
+              descLines.push(this.colorizer.color(sLine, subjectColor));
+            }
           }
         }
 
         // If description (body) is enabled and present, wrap and append below title
         if (this.columns.showDescription && node.commit.body) {
-          const bodyLines = wrapText(this.colorizer.dim(node.commit.body), col3Width);
-          descLines.push(...bodyLines);
+          const bodyLines = wrapText(node.commit.body, col3Width);
+          for (const bLine of bodyLines) {
+            descLines.push(this.colorizer.dim(bLine));
+          }
         }
       }
     }
