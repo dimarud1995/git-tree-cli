@@ -6,7 +6,12 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "git-tree": "bin/git-tree.js"
+    "git-tree": "bin/git-tree.js",
+    "git-tree-cli": "bin/git-tree.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dimarud1995/git-tree-cli.git"
   },
   "files": [
     "dist",

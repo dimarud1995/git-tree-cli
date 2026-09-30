@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export type SkillTarget = 'antigravity' | 'claude' | 'cursor' | 'global' | 'auto';
+export type SkillTarget = 'antigravity' | 'claude' | 'cursor' | 'agents' | 'global' | 'auto';
 
 /**
  * Resolves the destination directory for the AI skill based on target
@@ -17,6 +17,8 @@ export function resolveSkillDestination(target: SkillTarget = 'auto'): string[] 
 
   if (target === 'antigravity' || target === 'auto') {
     destinations.push(path.join(home, '.gemini', 'skills', 'git-tree-cli'));
+    destinations.push(path.join(home, '.gemini', 'config', 'skills', 'git-tree-cli'));
+    destinations.push(path.join(process.cwd(), '.agents', 'skills', 'git-tree-cli'));
   }
   if (target === 'claude' || target === 'auto') {
     destinations.push(path.join(home, '.claude', 'skills', 'git-tree-cli'));
@@ -24,11 +26,17 @@ export function resolveSkillDestination(target: SkillTarget = 'auto'): string[] 
   if (target === 'cursor' || target === 'auto') {
     destinations.push(path.join(process.cwd(), '.cursor', 'skills', 'git-tree-cli'));
   }
+  if (target === 'agents' || target === 'auto') {
+    destinations.push(path.join(home, '.agents', 'skills', 'git-tree-cli'));
+    destinations.push(path.join(process.cwd(), '.agents', 'skills', 'git-tree-cli'));
+  }
   if (target === 'global' || target === 'auto') {
     destinations.push(path.join(home, '.config', 'ai-skills', 'git-tree-cli'));
+    destinations.push(path.join(home, '.config', 'skills', 'git-tree-cli'));
   }
 
-  return destinations;
+  // Deduplicate preserving order
+  return Array.from(new Set(destinations));
 }
 
 /**

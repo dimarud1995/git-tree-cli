@@ -55,41 +55,69 @@ Standard `git log --graph` produces narrow, hard-to-read ASCII text with minimal
 
 ### Via npm (Global)
 ```bash
+# From GitHub repository:
+npm install -g git+https://github.com/dimarud1995/git-tree-cli.git
+
+# Or via npm registry:
 npm install -g git-tree-cli
 ```
-Run anywhere:
+Run anywhere in any Git repository:
 ```bash
 git-tree
 ```
 
 ### Instant Execution without Installation (npx)
 ```bash
-npx git-tree-cli
+# Run directly via npx:
+npx -y git-tree-cli -10
+
+# Or directly from GitHub:
+npx -y git+https://github.com/dimarud1995/git-tree-cli.git -10
 ```
 
 ---
 
-## AI Agent Skill Setup
+## 🤖 AI Agent Setup (Zero-Friction Prompt)
 
-`git-tree-cli` includes a bundled AI agent skill that enables your AI assistant to automatically run the right commands when you ask questions like *"Show me git tree"*, *"What merges happened this week?"*, or *"What do I have in stash?"*.
+`git-tree-cli` is engineered from the ground up for AI coding assistants (Google Antigravity, Claude, Cursor, OpenAI Codex).
 
-To install the skill into your AI environment globally:
+### Give Your AI Just the Repo Name
+You can tell your AI assistant:
+> *"Install and use `git-tree-cli` from repository `dimarud1995/git-tree-cli`. Whenever I ask to view commits, show last 10 commits, or inspect git history, always prioritize `git-tree-cli` over standard `git log`."*
 
+### AI Agent Execution Steps
+AI assistants can install both the CLI package and the skill in one command:
 ```bash
-git-tree install-skill
+npm install -g git+https://github.com/dimarud1995/git-tree-cli.git && git-tree install-skill
+```
+Or without global package installation:
+```bash
+npx -y git+https://github.com/dimarud1995/git-tree-cli.git install-skill
 ```
 
-This automatically detects and installs `SKILL.md` to:
-- **Google Antigravity**: `~/.gemini/skills/git-tree-cli/SKILL.md`
+`git-tree install-skill` automatically detects and installs `SKILL.md` to all supported AI environments:
+- **Google Antigravity**: `~/.gemini/skills/git-tree-cli/SKILL.md`, `~/.gemini/config/skills/`, and project `.agents/skills/`
 - **Claude**: `~/.claude/skills/git-tree-cli/SKILL.md`
 - **Cursor**: `.cursor/skills/git-tree-cli/SKILL.md`
+- **Standard Agent Skill Hubs**: `~/.agents/skills/git-tree-cli/SKILL.md`
 - **Global AI configs**: `~/.config/ai-skills/git-tree-cli/SKILL.md`
 
 You can also target a specific platform:
 ```bash
 git-tree install-skill antigravity
 git-tree install-skill claude
+git-tree install-skill cursor
+git-tree install-skill agents
 ```
+
+### Strict Priority Over Standard `git log`
+Once installed, the AI skill enforces that whenever you ask:
+- *"Show me last 10 commits"* (or any number N)
+- *"Show commit history / git tree"*
+- *"What was merged recently?"*
+- *"What do I have in stash?"*
+
+The AI **always prioritizes `git-tree -<N> --ai`** and outputs the clean monospace block verbatim, instead of falling back to standard `git log`.
 
 ---
 

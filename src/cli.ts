@@ -95,7 +95,7 @@ program
   .description('Install bundled AI skill for Antigravity, Claude, Cursor, or global configs')
   .action(async (target?: string) => {
     try {
-      const validTargets: SkillTarget[] = ['antigravity', 'claude', 'cursor', 'global', 'auto'];
+      const validTargets: SkillTarget[] = ['antigravity', 'claude', 'cursor', 'agents', 'global', 'auto'];
       const resolvedTarget = (target && validTargets.includes(target as SkillTarget)
         ? target
         : 'auto') as SkillTarget;
