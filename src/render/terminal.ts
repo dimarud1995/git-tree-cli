@@ -460,21 +460,48 @@ export class TerminalRenderer {
         descLines.push(...wrapText(node.stash.message, col3Width));
       } else if (node.commit) {
         if (this.columns.showTitle) {
-          const parts: string[] = [];
+          const firstLineParts: string[] = [];
+
+          // 1. Ref badges (HEAD, tags, branches, remotes)
           if (node.commit.refs.length > 0) {
             const badges = this.renderRefs(node.commit.refs);
-            if (badges) parts.push(badges);
+            if (badges) firstLineParts.push(badges);
           }
 
-          // Dedicated commit type badge: [MERGE] in bold red, [REBASE] in purple,
+          // 2. Always show branch name in first line if no branch ref was present
+          const hasBranchRef = node.commit.refs.some(
+            (r) => r.type === 'head' || r.type === 'branch' || r.type === 'remote'
+          );
+          if (!hasBranchRef && row.branch) {
+            const branchLabel = `(${row.branch})`;
+            firstLineParts.unshift(this.colorizer.color(branchLabel, this.colorizer.theme.remote));
+          }
+
+          // 3. Dedicated commit type badge: [MERGE] in bold red, [REBASE] in purple,
           // [FAST-FORWARD] in cyan, [SQUASH] in amber
           const typeBadge = getCommitTypeBadge(node.commit, this.colorizer);
           if (typeBadge) {
-            parts.push(typeBadge);
+            firstLineParts.push(typeBadge);
           }
 
-          parts.push(this.colorizer.color(node.commit.subject, this.colorizer.theme.subject));
-          descLines.push(...wrapText(parts.join(' '), col3Width));
+          // Subject styled using the dark branch name color category (theme.remote)
+          const subjectColor = this.colorizer.theme.remote;
+          const subjectStyled = this.colorizer.color(node.commit.subject, subjectColor);
+
+          if (this.options.layout === 'compact') {
+            const parts: string[] = [];
+            if (firstLineParts.length > 0) parts.push(...firstLineParts);
+            parts.push(subjectStyled);
+            descLines.push(...wrapText(parts.join(' '), col3Width));
+          } else {
+            // Normal & Expanded layouts:
+            // Line 1: Branch name(s) & badges
+            if (firstLineParts.length > 0) {
+              descLines.push(...wrapText(firstLineParts.join(' '), col3Width));
+            }
+            // Line 2: Commit title (subject) below the branch name
+            descLines.push(...wrapText(subjectStyled, col3Width));
+          }
         }
 
         // If description (body) is enabled and present, wrap and append below title
